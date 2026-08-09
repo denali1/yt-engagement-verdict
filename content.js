@@ -234,17 +234,22 @@
 
   // ─── Widget Rendering ─────────────────────────────────────────────────────
 
-  function scoreBar(score, max) {
-    const pct = Math.round((score / max) * 100);
-    return `
-      <div class="ytev-bar-wrap" title="${score}/${max} signals">
-        <div class="ytev-bar-fill" style="width:${pct}%"></div>
-      </div>`;
+  /** Create an element with optional className and textContent */
+  function make(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
   }
 
-  function signalDot(score) {
-    const cls = score === 2 ? "high" : score === 1 ? "mid" : "low";
-    return `<span class="ytev-dot ytev-dot-${cls}" title="Signal: ${score}/2"></span>`;
+  /** Create an anchor element */
+  function makeLink(href, text) {
+    const a = document.createElement("a");
+    a.href = href;
+    a.textContent = text;
+    a.target = "_blank";
+    a.rel = "noopener";
+    return a;
   }
 
   function renderWidget(result, selectorVersion) {
@@ -252,56 +257,99 @@
     if (existing) existing.remove();
 
     const { verdict, composite, maxScore, signals, inputs, hasSentiment } = result;
+    const pct = Math.round((composite / maxScore) * 100);
 
-    const signalRows = signals.map(s => `
-      <div class="ytev-signal-row">
-        ${signalDot(s.score)}
-        <span class="ytev-signal-name">${s.name}</span>
-        <span class="ytev-signal-rate">${formatRate(s.rate)}</span>
-        <span class="ytev-signal-range">expected ${formatRate(s.expected.low)}–${formatRate(s.expected.high)}</span>
-      </div>
-    `).join("");
-
-    const dislikeNote = hasSentiment
-      ? `<div class="ytev-ryd-note">Dislikes via <a href="https://returnyoutubedislike.com" target="_blank" rel="noopener">Return YouTube Dislike</a></div>`
-      : `<div class="ytev-ryd-note ytev-ryd-missing">Dislike data unavailable — sentiment signal excluded</div>`;
-
+    // ── Root widget ──
     const widget = document.createElement("div");
     widget.id = WIDGET_ID;
     widget.setAttribute("data-score", composite);
     widget.setAttribute("data-max", maxScore);
-    widget.innerHTML = `
-      <div class="ytev-header">
-        <span class="ytev-emoji">${verdict.emoji}</span>
-        <span class="ytev-label" style="color:${verdict.color}">${verdict.label}</span>
-        <button class="ytev-toggle" aria-expanded="false" aria-label="Show details">▾</button>
-      </div>
-      <div class="ytev-score-row">
-        ${scoreBar(composite, maxScore)}
-        <span class="ytev-score-text">${composite}/${maxScore}</span>
-      </div>
-      <p class="ytev-description">${verdict.description}</p>
-      <div class="ytev-details" hidden>
-        <div class="ytev-stats-grid">
-          <div class="ytev-stat"><span class="ytev-stat-val">${formatNum(inputs.views)}</span><span class="ytev-stat-lbl">Views</span></div>
-          <div class="ytev-stat"><span class="ytev-stat-val">${formatNum(inputs.likes)}</span><span class="ytev-stat-lbl">Likes</span></div>
-          <div class="ytev-stat"><span class="ytev-stat-val">${inputs.dislikes !== null ? formatNum(inputs.dislikes) : "—"}</span><span class="ytev-stat-lbl">Dislikes</span></div>
-          <div class="ytev-stat"><span class="ytev-stat-val">${formatNum(inputs.comments)}</span><span class="ytev-stat-lbl">Comments</span></div>
-        </div>
-        <div class="ytev-signals">${signalRows}</div>
-        ${dislikeNote}
-        <div class="ytev-methodology">
-          Scored using log-normalized engagement decay tiers.
-          Selectors v${selectorVersion}.<br>
-          <a href="https://github.com/Denali1/yt-engagement-verdict#methodology" target="_blank" rel="noopener">Methodology ↗</a>
-          &nbsp;·&nbsp;
-          <a href="https://github.com/Denali1/yt-engagement-verdict/blob/main/selectors.json" target="_blank" rel="noopener">Selector source ↗</a>
-        </div>
-      </div>
-    `;
 
-    widget.querySelector(".ytev-toggle").addEventListener("click", function () {
-      const details = widget.querySelector(".ytev-details");
+    // ── Header ──
+    const header = make("div", "ytev-header");
+    header.appendChild(make("span", "ytev-emoji", verdict.emoji));
+    const labelSpan = make("span", "ytev-label", verdict.label);
+    labelSpan.style.color = verdict.color;
+    header.appendChild(labelSpan);
+    const toggleBtn = make("button", "ytev-toggle", "▾");
+    toggleBtn.setAttribute("aria-expanded", "false");
+    toggleBtn.setAttribute("aria-label", "Show details");
+    header.appendChild(toggleBtn);
+    widget.appendChild(header);
+
+    // ── Score bar ──
+    const scoreRow = make("div", "ytev-score-row");
+    const barWrap = make("div", "ytev-bar-wrap");
+    barWrap.title = `${composite}/${maxScore} signals`;
+    const barFill = make("div", "ytev-bar-fill");
+    barFill.style.width = `${pct}%`;
+    barWrap.appendChild(barFill);
+    scoreRow.appendChild(barWrap);
+    scoreRow.appendChild(make("span", "ytev-score-text", `${composite}/${maxScore}`));
+    widget.appendChild(scoreRow);
+
+    // ── Description ──
+    widget.appendChild(make("p", "ytev-description", verdict.description));
+
+    // ── Details panel ──
+    const details = make("div", "ytev-details");
+    details.hidden = true;
+
+    // Stats grid
+    const statsGrid = make("div", "ytev-stats-grid");
+    [
+      [inputs.views,     "Views"],
+      [inputs.likes,     "Likes"],
+      [inputs.dislikes !== null ? inputs.dislikes : null, "Dislikes"],
+      [inputs.comments,  "Comments"],
+    ].forEach(([val, label]) => {
+      const stat = make("div", "ytev-stat");
+      stat.appendChild(make("span", "ytev-stat-val", val !== null ? formatNum(val) : "—"));
+      stat.appendChild(make("span", "ytev-stat-lbl", label));
+      statsGrid.appendChild(stat);
+    });
+    details.appendChild(statsGrid);
+
+    // Signal rows
+    const signalsDiv = make("div", "ytev-signals");
+    signals.forEach(s => {
+      const row = make("div", "ytev-signal-row");
+      const dotCls = s.score === 2 ? "high" : s.score === 1 ? "mid" : "low";
+      const dot = make("span", `ytev-dot ytev-dot-${dotCls}`);
+      dot.title = `Signal: ${s.score}/2`;
+      row.appendChild(dot);
+      row.appendChild(make("span", "ytev-signal-name", s.name));
+      row.appendChild(make("span", "ytev-signal-rate", formatRate(s.rate)));
+      row.appendChild(make("span", "ytev-signal-range", `expected ${formatRate(s.expected.low)}–${formatRate(s.expected.high)}`));
+      signalsDiv.appendChild(row);
+    });
+    details.appendChild(signalsDiv);
+
+    // RYD note
+    const rydNote = make("div", hasSentiment ? "ytev-ryd-note" : "ytev-ryd-note ytev-ryd-missing");
+    if (hasSentiment) {
+      rydNote.appendChild(document.createTextNode("Dislikes via "));
+      rydNote.appendChild(makeLink("https://returnyoutubedislike.com", "Return YouTube Dislike"));
+    } else {
+      rydNote.textContent = "Dislike data unavailable — sentiment signal excluded";
+    }
+    details.appendChild(rydNote);
+
+    // Methodology
+    const methodology = make("div", "ytev-methodology");
+    methodology.appendChild(document.createTextNode(
+      `Scored using log-normalized engagement decay tiers. Selectors v${selectorVersion}.`
+    ));
+    methodology.appendChild(document.createElement("br"));
+    methodology.appendChild(makeLink("https://github.com/Denali1/yt-engagement-verdict#methodology", "Methodology ↗"));
+    methodology.appendChild(document.createTextNode(" · "));
+    methodology.appendChild(makeLink("https://github.com/Denali1/yt-engagement-verdict/blob/main/selectors.json", "Selector source ↗"));
+    details.appendChild(methodology);
+
+    widget.appendChild(details);
+
+    // ── Toggle listener ──
+    toggleBtn.addEventListener("click", function () {
       const expanded = this.getAttribute("aria-expanded") === "true";
       details.hidden = expanded;
       this.setAttribute("aria-expanded", String(!expanded));

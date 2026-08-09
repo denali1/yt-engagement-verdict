@@ -2,6 +2,8 @@
 
 (function () {
 
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+
   function dotClass(score) {
     if (score === 2) return "dot-high";
     if (score === 1) return "dot-mid";
@@ -29,12 +31,80 @@
     return (r * 100).toFixed(3) + "%";
   }
 
+  /** Create an element with optional className and textContent */
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
   function setVersionLabel(version, source) {
-    const el = document.getElementById("selector-version");
-    if (!el) return;
+    const node = document.getElementById("selector-version");
+    if (!node) return;
     const sourceLabel = source === "remote" ? "↑ live" : source === "cached" ? "cached" : "fallback";
-    el.textContent = `Selectors v${version} (${sourceLabel})`;
-    el.style.color = source === "fallback" ? "#ff8c00" : "#555";
+    node.textContent = `Selectors v${version} (${sourceLabel})`;
+    node.style.color = source === "fallback" ? "#ff8c00" : "#555";
+  }
+
+  // ─── Render verdict display ───────────────────────────────────────────────
+
+  function renderVerdict(display, response) {
+    const { verdict, composite, maxScore, signals, inputs } = response;
+    const pct = Math.round((composite / maxScore) * 100);
+
+    // Verdict row
+    const verdictRow = el("div", "verdict-row");
+    verdictRow.appendChild(el("span", "verdict-emoji", verdict.emoji));
+    const labelSpan = el("span", "verdict-label", verdict.label);
+    labelSpan.style.color = verdict.color;
+    verdictRow.appendChild(labelSpan);
+    display.appendChild(verdictRow);
+
+    // Score line
+    display.appendChild(el("div", "score-line", `${composite}/${maxScore} signals · ${pct}%`));
+
+    // Bar
+    const barWrap = el("div", "bar-wrap");
+    const barFill = el("div", "bar-fill");
+    barFill.style.width = `${pct}%`;
+    barFill.style.background = barColor(composite, maxScore);
+    barWrap.appendChild(barFill);
+    display.appendChild(barWrap);
+
+    // Description
+    const desc = el("p", null, verdict.description);
+    desc.style.cssText = "font-size:12px; color:#ccc; margin-bottom:10px;";
+    display.appendChild(desc);
+
+    // Signal list
+    const ul = el("ul", "signal-list");
+    signals.forEach(s => {
+      const li = document.createElement("li");
+
+      const dot = el("span", `dot ${dotClass(s.score)}`);
+      li.appendChild(dot);
+
+      const text = document.createElement("span");
+      const rateText = document.createTextNode(`${s.name}: ${formatRate(s.rate)} `);
+      text.appendChild(rateText);
+
+      const expected = el("span", null, `(expected ${formatRate(s.expected.low)}–${formatRate(s.expected.high)})`);
+      expected.style.color = "#666";
+      text.appendChild(expected);
+
+      li.appendChild(text);
+      ul.appendChild(li);
+    });
+    display.appendChild(ul);
+
+    // Stats row
+    const stats = el("div");
+    stats.style.cssText = "font-size:11px; color:#888; margin-top:6px;";
+    let statsText = `Views: ${formatNum(inputs.views)} · Likes: ${formatNum(inputs.likes)} · Comments: ${formatNum(inputs.comments)}`;
+    if (inputs.dislikes !== null) statsText += ` · Dislikes: ${formatNum(inputs.dislikes)}`;
+    stats.textContent = statsText;
+    display.appendChild(stats);
   }
 
   // ─── Get active tab ───────────────────────────────────────────────────────
@@ -43,7 +113,7 @@
     const tab = tabs[0];
     const isYouTubeVideo = tab && tab.url && tab.url.includes("youtube.com/watch");
 
-    // ── Selector version display ──
+    // Selector version display
     if (isYouTubeVideo) {
       browser.tabs.sendMessage(tab.id, { type: "GET_SELECTOR_VERSION" })
         .then(res => {
@@ -52,7 +122,7 @@
         .catch(() => {});
     }
 
-    // ── Refresh button ──
+    // Refresh button
     const refreshBtn = document.getElementById("refresh-selectors");
     if (refreshBtn) {
       refreshBtn.addEventListener("click", () => {
@@ -72,9 +142,9 @@
       });
     }
 
-    // ── Verdict display ──
     if (!isYouTubeVideo) return;
 
+    // Verdict display
     browser.tabs.sendMessage(tab.id, { type: "GET_VERDICT" }).then(response => {
       if (!response || !response.verdict) {
         document.getElementById("status").textContent =
@@ -82,41 +152,12 @@
         return;
       }
 
-      const { verdict, composite, maxScore, signals, inputs } = response;
-
       document.getElementById("status").hidden = true;
       const display = document.getElementById("verdict-display");
       display.hidden = false;
 
-      const pct = Math.round((composite / maxScore) * 100);
+      renderVerdict(display, response);
 
-      display.innerHTML = `
-        <div class="verdict-row">
-          <span class="verdict-emoji">${verdict.emoji}</span>
-          <span class="verdict-label" style="color:${verdict.color}">${verdict.label}</span>
-        </div>
-        <div class="score-line">${composite}/${maxScore} signals · ${pct}%</div>
-        <div class="bar-wrap">
-          <div class="bar-fill" style="width:${pct}%; background:${barColor(composite, maxScore)}"></div>
-        </div>
-        <p style="font-size:12px; color:#ccc; margin-bottom:10px;">${verdict.description}</p>
-        <ul class="signal-list">
-          ${signals.map(s => `
-            <li>
-              <span class="dot ${dotClass(s.score)}"></span>
-              <span>${s.name}: ${formatRate(s.rate)}
-                <span style="color:#666;">(expected ${formatRate(s.expected.low)}–${formatRate(s.expected.high)})</span>
-              </span>
-            </li>
-          `).join("")}
-        </ul>
-        <div style="font-size:11px; color:#888; margin-top:6px;">
-          Views: ${formatNum(inputs.views)} &nbsp;·&nbsp;
-          Likes: ${formatNum(inputs.likes)} &nbsp;·&nbsp;
-          Comments: ${formatNum(inputs.comments)}
-          ${inputs.dislikes !== null ? `&nbsp;·&nbsp; Dislikes: ${formatNum(inputs.dislikes)}` : ""}
-        </div>
-      `;
     }).catch(() => {
       document.getElementById("status").textContent =
         "Could not reach the page. Try refreshing the YouTube tab.";
