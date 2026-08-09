@@ -80,9 +80,15 @@ This methodology draws from:
 
 ---
 
-## Installation (Developer / Unpacked)
+## Installation
 
-Firefox does not yet support loading unpacked extensions permanently without signing, but you can run it in temporary mode for testing:
+### Mozilla Add-on Store (Recommended)
+
+This extension has been submitted to [addons.mozilla.org](https://addons.mozilla.org) and is currently awaiting review. Once approved, you'll be able to install it directly from AMO with one click and receive automatic updates.
+
+### Developer / Temporary Install
+
+While AMO review is pending, or if you want to run the latest code from this repo:
 
 1. Clone this repository:
    ```bash
@@ -100,7 +106,7 @@ Firefox does not yet support loading unpacked extensions permanently without sig
 
 5. Navigate to any YouTube video — the verdict widget will appear below the view count.
 
-> **Note:** Temporary add-ons are removed when Firefox closes. For persistent installation, the extension needs to be signed via [Mozilla Add-on Hub](https://addons.mozilla.org/en-US/developers/).
+> **Note:** Temporary add-ons are removed when Firefox closes. For a permanent install, wait for AMO approval or self-sign via [Mozilla Extension Workshop](https://extensionworkshop.com/documentation/publish/signing-and-distribution-overview/).
 
 ---
 
