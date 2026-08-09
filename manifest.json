@@ -31,7 +31,9 @@
 
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "*://returnyoutubedislikeapi.com/*",
+    "*://raw.githubusercontent.com/*"
   ],
 
   "host_permissions": [
