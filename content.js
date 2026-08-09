@@ -24,7 +24,7 @@
 (function () {
 
   const WIDGET_ID        = "ytev-widget";
-  const RETRY_LIMIT      = 20;
+  const RETRY_LIMIT      = 40;
   const RETRY_MS         = 500;
   const SELECTOR_TTL_MS  = 24 * 60 * 60 * 1000; // 24 hours
   const SELECTOR_CACHE_KEY  = "ytev_selectors";
@@ -349,7 +349,7 @@
     const likes    = scrapeLikes();
     const comments = scrapeComments();
 
-    if ((views === null || likes === null || likes === 0) && retryCount < RETRY_LIMIT) {
+    if ((views === null || likes === null || likes === 0 || comments === null || comments === 0) && retryCount < RETRY_LIMIT) {
       retryCount++;
       retryTimer = setTimeout(() => attempt(videoId), RETRY_MS);
       return;
