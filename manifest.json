@@ -51,5 +51,10 @@
       "id": "yt-engagement-verdict@denali1",
       "strict_min_version": "115.0"
     }
+  },
+
+  "data_collection_permissions": {
+    "required": [],
+    "optional": []
   }
 }
