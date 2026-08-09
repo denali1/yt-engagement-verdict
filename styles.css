@@ -1,0 +1,260 @@
+/* ============================================================
+   YT Engagement Verdict — Injected Styles
+   Designed to feel native to YouTube's dark and light modes.
+   ============================================================ */
+
+#ytev-widget {
+  font-family: "Roboto", "Arial", sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--yt-spec-text-primary, #0f0f0f);
+  background: var(--yt-spec-badge-chip-background, rgba(0,0,0,0.05));
+  border: 1px solid var(--yt-spec-10-percent-layer, rgba(0,0,0,0.1));
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 8px 0 4px 0;
+  max-width: 640px;
+  box-sizing: border-box;
+  transition: box-shadow 0.15s ease;
+}
+
+#ytev-widget:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+/* ── Header ── */
+
+.ytev-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 5px;
+}
+
+.ytev-emoji {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.ytev-label {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  flex: 1;
+}
+
+.ytev-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--yt-spec-text-secondary, #606060);
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background 0.1s;
+  line-height: 1;
+}
+
+.ytev-toggle:hover {
+  background: var(--yt-spec-10-percent-layer, rgba(0,0,0,0.08));
+}
+
+/* ── Score bar ── */
+
+.ytev-score-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.ytev-bar-wrap {
+  flex: 1;
+  height: 5px;
+  background: var(--yt-spec-10-percent-layer, rgba(0,0,0,0.10));
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ytev-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* Colour-code by score via data attribute */
+#ytev-widget[data-score="0"] .ytev-bar-fill,
+#ytev-widget[data-score="1"] .ytev-bar-fill { background: #ff4444; }
+
+#ytev-widget[data-score="2"] .ytev-bar-fill,
+#ytev-widget[data-score="3"] .ytev-bar-fill { background: #ff8c00; }
+
+#ytev-widget[data-score="4"] .ytev-bar-fill,
+#ytev-widget[data-score="5"] .ytev-bar-fill { background: #4caf50; }
+
+#ytev-widget[data-score="6"] .ytev-bar-fill { background: linear-gradient(90deg, #ff6b35, #ff4500); }
+
+.ytev-score-text {
+  font-size: 11px;
+  color: var(--yt-spec-text-secondary, #606060);
+  white-space: nowrap;
+  min-width: 28px;
+  text-align: right;
+}
+
+/* ── Description ── */
+
+.ytev-description {
+  margin: 0 0 0 0;
+  font-size: 12px;
+  color: var(--yt-spec-text-secondary, #606060);
+}
+
+/* ── Details panel ── */
+
+.ytev-details {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--yt-spec-10-percent-layer, rgba(0,0,0,0.08));
+}
+
+.ytev-details[hidden] {
+  display: none;
+}
+
+/* Stats grid */
+.ytev-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ytev-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--yt-spec-10-percent-layer, rgba(0,0,0,0.04));
+  border-radius: 6px;
+  padding: 5px 4px;
+}
+
+.ytev-stat-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--yt-spec-text-primary, #0f0f0f);
+}
+
+.ytev-stat-lbl {
+  font-size: 10px;
+  color: var(--yt-spec-text-secondary, #606060);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Signal rows */
+.ytev-signals {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.ytev-signal-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+
+.ytev-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ytev-dot-high { background: #4caf50; }
+.ytev-dot-mid  { background: #ff8c00; }
+.ytev-dot-low  { background: #ff4444; }
+
+.ytev-signal-name {
+  font-weight: 600;
+  min-width: 90px;
+  color: var(--yt-spec-text-primary, #0f0f0f);
+}
+
+.ytev-signal-rate {
+  font-variant-numeric: tabular-nums;
+  min-width: 60px;
+}
+
+.ytev-signal-range {
+  color: var(--yt-spec-text-secondary, #606060);
+  font-size: 11px;
+}
+
+/* RYD note */
+.ytev-ryd-note {
+  font-size: 11px;
+  color: var(--yt-spec-text-secondary, #606060);
+  margin-bottom: 6px;
+}
+
+.ytev-ryd-note a {
+  color: var(--yt-spec-call-to-action, #065fd4);
+  text-decoration: none;
+}
+
+.ytev-ryd-note a:hover {
+  text-decoration: underline;
+}
+
+.ytev-ryd-missing {
+  font-style: italic;
+}
+
+/* Methodology link */
+.ytev-methodology {
+  font-size: 11px;
+  color: var(--yt-spec-text-secondary, #606060);
+  line-height: 1.6;
+}
+
+.ytev-methodology a {
+  color: var(--yt-spec-call-to-action, #065fd4);
+  text-decoration: none;
+}
+
+.ytev-methodology a:hover {
+  text-decoration: underline;
+}
+
+/* ── Dark mode ── */
+
+html[dark] #ytev-widget,
+[dark] #ytev-widget {
+  color: #f1f1f1;
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.1);
+}
+
+html[dark] .ytev-stat,
+[dark] .ytev-stat {
+  background: rgba(255,255,255,0.06);
+}
+
+html[dark] .ytev-stat-val,
+[dark] .ytev-stat-val {
+  color: #f1f1f1;
+}
+
+/* ── Reduced motion ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .ytev-bar-fill,
+  #ytev-widget {
+    transition: none;
+  }
+}
