@@ -394,6 +394,11 @@
   });
 
   // ─── Navigation Listeners ─────────────────────────────────────────────────
+  // YouTube is a SPA with inconsistent navigation events. We use three
+  // strategies in combination to catch all navigation types:
+  //   1. yt-navigate-finish — YouTube's own event, most reliable
+  //   2. popstate — browser back/forward
+  //   3. URL polling — catches pushState navigations that fire neither event
 
   function onNavigate() {
     currentVideoId = null;
@@ -402,6 +407,24 @@
 
   window.addEventListener("yt-navigate-finish", onNavigate);
   window.addEventListener("popstate", onNavigate);
+
+  // URL polling fallback — checks every 500ms if the URL has changed.
+  // Lightweight since it's just a string comparison.
+  let lastUrl = location.href;
+  setInterval(() => {
+    const currentUrl = location.href;
+    if (currentUrl !== lastUrl) {
+      lastUrl = currentUrl;
+      // Only trigger if we're on a video page
+      if (currentUrl.includes("youtube.com/watch")) {
+        onNavigate();
+      } else {
+        // Left a video page — clean up the widget
+        currentVideoId = null;
+        document.getElementById(WIDGET_ID)?.remove();
+      }
+    }
+  }, 500);
 
   // ─── Init ─────────────────────────────────────────────────────────────────
   // Load selectors first, then start watching the page.
