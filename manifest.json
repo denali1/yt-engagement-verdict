@@ -44,5 +44,12 @@
 
   "web_accessible_resources": [
     "icons/*"
-  ]
+  ],
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "yt-engagement-verdict@denali1",
+      "strict_min_version": "115.0"
+    }
+  }
 }
