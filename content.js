@@ -36,13 +36,14 @@
   // Update selectors.json on GitHub to push fixes without a new release.
 
   const FALLBACK_SELECTORS = {
-    version: "1.0.0",
+    version: "1.0.1",
     views: [
       "ytd-watch-info-text span.yt-core-attributed-string",
       "#info .view-count",
       "ytd-video-view-count-renderer .view-count"
     ],
     likes: [
+      "like-button-view-model button",
       "ytd-toggle-button-renderer like-button-view-model button",
       "ytd-menu-renderer ytd-toggle-button-renderer button[aria-label*='like' i]",
       "like-button-view-model .yt-spec-button-shape-next__button-text-content"
@@ -187,22 +188,30 @@
       if (!el) continue;
 
       // Try aria-label first (most reliable)
+      // YouTube uses "like this video along with 8,331 other people"
       const label = el.getAttribute("aria-label") || "";
       const labelMatch = label.match(/([\d,.]+[KMBkmb]?)/);
-      if (labelMatch) return parseYTNumber(labelMatch[1]);
+      if (labelMatch) {
+        const val = parseYTNumber(labelMatch[1]);
+        // Only trust aria-label result if it's > 0 OR the label explicitly
+        // says "like this video" with no number (genuinely 0 likes edge case)
+        if (val !== null && val > 0) return val;
+        if (val === 0 && /like this video/i.test(label) && !/along with/i.test(label)) return 0;
+      }
 
       // Try text content
       const val = parseYTNumber(el.textContent);
-      if (val !== null) return val;
+      if (val !== null && val > 0) return val;
 
       // Try sibling span inside toggle renderer
       const countEl = el.closest("ytd-toggle-button-renderer")
         ?.querySelector("span.yt-core-attributed-string");
       if (countEl) {
         const v = parseYTNumber(countEl.textContent);
-        if (v !== null) return v;
+        if (v !== null && v > 0) return v;
       }
     }
+    // Return null so the retry loop keeps trying until aria-label is populated
     return null;
   }
 
@@ -340,7 +349,7 @@
     const likes    = scrapeLikes();
     const comments = scrapeComments();
 
-    if ((views === null || likes === null) && retryCount < RETRY_LIMIT) {
+    if ((views === null || likes === null || likes === 0) && retryCount < RETRY_LIMIT) {
       retryCount++;
       retryTimer = setTimeout(() => attempt(videoId), RETRY_MS);
       return;

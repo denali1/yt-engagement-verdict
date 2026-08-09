@@ -1,6 +1,6 @@
 {
   "_comment": "YT Engagement Verdict — Remote Selector List. Update this file to fix broken scrapers without shipping a new extension release. Installed copies refresh every 24 hours automatically. See CONTRIBUTING.md for the selector update workflow.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "updated": "2026-08-09",
   "views": [
     "ytd-watch-info-text span.yt-core-attributed-string",
@@ -9,6 +9,7 @@
     "ytd-video-view-count-renderer span.view-count"
   ],
   "likes": [
+    "like-button-view-model button",
     "ytd-toggle-button-renderer like-button-view-model button",
     "ytd-menu-renderer ytd-toggle-button-renderer button[aria-label*='like' i]",
     "like-button-view-model .yt-spec-button-shape-next__button-text-content",
