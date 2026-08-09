@@ -49,12 +49,11 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "yt-engagement-verdict@denali1",
-      "strict_min_version": "115.0"
+      "strict_min_version": "115.0",
+      "data_collection_permissions": {
+        "required": [],
+        "optional": []
+      }
     }
-  },
-
-  "data_collection_permissions": {
-    "required": [],
-    "optional": []
   }
 }
