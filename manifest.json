@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "YT Engagement Verdict",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Analyzes YouTube video engagement (views, likes, dislikes, comments) and renders a statistically-grounded authenticity verdict below the view count.",
   "author": "Denali",
   "homepage_url": "https://github.com/Denali1/yt-engagement-verdict",
@@ -32,11 +32,6 @@
   "permissions": [
     "activeTab",
     "storage",
-    "*://returnyoutubedislikeapi.com/*",
-    "*://raw.githubusercontent.com/*"
-  ],
-
-  "host_permissions": [
     "*://www.youtube.com/*",
     "*://returnyoutubedislikeapi.com/*",
     "*://raw.githubusercontent.com/*"
@@ -49,7 +44,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "yt-engagement-verdict@denali1",
-      "strict_min_version": "115.0",
+      "strict_min_version": "140.0",
       "data_collection_permissions": {
         "required": ["none"],
         "optional": []
