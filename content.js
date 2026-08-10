@@ -410,6 +410,11 @@
 
     if (lastResult.error || !lastResult.verdict) return;
 
+    // If comments came back 0, start watching for lazy-load
+    if (!comments || comments === 0) {
+      setTimeout(startCommentObserver, 1000);
+    }
+
     const widget = renderWidget(lastResult, activeSelectors.version);
 
     function tryInject() {
@@ -473,6 +478,50 @@
       }
     }
   }, 500);
+
+  // ─── MutationObserver ─────────────────────────────────────────────────
+  // Watches for YouTube lazy-loading the comment count into the DOM.
+  // When it appears (e.g. after scrolling in playlist mode), re-runs the
+  // scraper and updates the widget if the count was previously 0 or null.
+
+  let commentObserver = null;
+
+  function startCommentObserver() {
+    if (commentObserver) {
+      commentObserver.disconnect();
+      commentObserver = null;
+    }
+
+    const target = document.querySelector("#comments, ytd-comments");
+    if (!target) return;
+
+    commentObserver = new MutationObserver(() => {
+      const comments = scrapeComments();
+      if (comments && comments > 0 && lastResult) {
+        // Comments have loaded — recompute and update widget
+        const widget = document.getElementById(WIDGET_ID);
+        if (!widget) return;
+
+        const { inputs } = lastResult;
+        if (inputs.comments === 0 || inputs.comments === null) {
+          console.debug(`[YTEV] MutationObserver caught comment count: ${comments}`);
+          lastResult = YTVerdict.compute(inputs.views, inputs.likes, inputs.dislikes, comments);
+          if (lastResult.verdict) {
+            const newWidget = renderWidget(lastResult, activeSelectors.version);
+            widget.parentNode.insertBefore(newWidget, widget);
+            widget.remove();
+          }
+        }
+
+        // Stop observing once we have a count
+        commentObserver.disconnect();
+        commentObserver = null;
+      }
+    });
+
+    commentObserver.observe(target, { childList: true, subtree: true, characterData: true });
+    console.debug("[YTEV] MutationObserver watching for comment count...");
+  }
 
   // ─── Init ─────────────────────────────────────────────────────────────────
   // Load selectors first, then start watching the page.

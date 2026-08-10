@@ -1,7 +1,7 @@
 {
   "_comment": "YT Engagement Verdict — Remote Selector List. Update this file to fix broken scrapers without shipping a new extension release. Installed copies refresh every 24 hours automatically. See CONTRIBUTING.md for the selector update workflow.",
-  "version": "1.0.1",
-  "updated": "2026-08-09",
+  "version": "1.0.2",
+  "updated": "2026-08-10",
   "views": [
     "ytd-watch-info-text span.yt-core-attributed-string",
     "#info .view-count",
@@ -18,7 +18,8 @@
   "comments": [
     "#comments #count .count-text",
     "ytd-comments-header-renderer h2 span",
-    "#comments ytd-comments-header-renderer span.count-text"
+    "#comments ytd-comments-header-renderer span.count-text",
+    "ytd-comments-header-renderer #count"
   ],
   "inject_before": [
     "#above-the-fold #bottom-row",
