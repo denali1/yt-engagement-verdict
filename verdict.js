@@ -98,20 +98,28 @@ const YTVerdict = (() => {
     }
 
     const tier = getTier(views);
-    const likeRate    = likes    / views;
-    const commentRate = comments / views;
+    const likeRate = likes / views;
 
-    const scoreA = scoreRate(likeRate,    tier.likeRate);
-    const scoreB = scoreRate(commentRate, tier.commentRate);
+    const scoreA = scoreRate(likeRate, tier.likeRate);
     const scoreC = scoreSentiment(likes, dislikes);
 
+    // Comment rate signal — excluded if comments are null (disabled or unavailable)
+    const hasComments = comments !== null && comments !== undefined;
+    const commentRate = hasComments ? comments / views : null;
+    const scoreB = hasComments ? scoreRate(commentRate, tier.commentRate) : null;
+
     const signals = [
-      { name: "Like rate",    score: scoreA, max: 2, rate: likeRate,    expected: tier.likeRate },
-      { name: "Comment rate", score: scoreB, max: 2, rate: commentRate, expected: tier.commentRate },
+      { name: "Like rate", score: scoreA, max: 2, rate: likeRate, expected: tier.likeRate },
     ];
 
-    let composite = scoreA + scoreB;
-    let maxScore  = 4;
+    let composite = scoreA;
+    let maxScore  = 2;
+
+    if (scoreB !== null) {
+      signals.push({ name: "Comment rate", score: scoreB, max: 2, rate: commentRate, expected: tier.commentRate });
+      composite += scoreB;
+      maxScore  += 2;
+    }
 
     if (scoreC !== null) {
       signals.push({ name: "Sentiment", score: scoreC, max: 2, rate: likes / (likes + dislikes), expected: { low: 0.40, high: 0.85 } });
@@ -128,6 +136,7 @@ const YTVerdict = (() => {
       signals,
       inputs: { views, likes, dislikes, comments },
       hasSentiment: scoreC !== null,
+      hasComments: scoreB !== null,
     };
   }
 

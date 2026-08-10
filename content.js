@@ -215,7 +215,16 @@
     return null;
   }
 
+  // Sentinel value meaning comments are intentionally disabled — not a scrape failure
+  const COMMENTS_DISABLED = -1;
+
   function scrapeComments() {
+    // Check if comments are turned off before trying selectors
+    const msg = document.querySelector("ytd-message-renderer");
+    if (msg && /comments are turned off/i.test(msg.textContent)) {
+      return COMMENTS_DISABLED;
+    }
+
     for (const sel of activeSelectors.comments) {
       const el = document.querySelector(sel);
       if (el) {
@@ -304,7 +313,10 @@
       [inputs.comments,  "Comments"],
     ].forEach(([val, label]) => {
       const stat = make("div", "ytev-stat");
-      stat.appendChild(make("span", "ytev-stat-val", val !== null ? formatNum(val) : "—"));
+      const displayVal = label === "Comments" && result.commentsDisabled
+        ? "Off"
+        : val !== null ? formatNum(val) : "—";
+      stat.appendChild(make("span", "ytev-stat-val", displayVal));
       stat.appendChild(make("span", "ytev-stat-lbl", label));
       statsGrid.appendChild(stat);
     });
@@ -324,6 +336,13 @@
       signalsDiv.appendChild(row);
     });
     details.appendChild(signalsDiv);
+
+    // Comments disabled note
+    if (result.commentsDisabled) {
+      const commentsNote = make("div", "ytev-ryd-note ytev-ryd-missing");
+      commentsNote.textContent = "Comments are turned off — comment rate signal excluded";
+      details.appendChild(commentsNote);
+    }
 
     // RYD note
     const rydNote = make("div", hasSentiment ? "ytev-ryd-note" : "ytev-ryd-note ytev-ryd-missing");
@@ -397,7 +416,7 @@
     const likes    = scrapeLikes();
     const comments = scrapeComments();
 
-    if ((views === null || likes === null || likes === 0 || comments === null || comments === 0) && retryCount < RETRY_LIMIT) {
+    if ((views === null || likes === null || likes === 0 || comments === null || comments === 0) && comments !== COMMENTS_DISABLED && retryCount < RETRY_LIMIT) {
       retryCount++;
       retryTimer = setTimeout(() => attempt(videoId), RETRY_MS);
       return;
@@ -406,11 +425,13 @@
     const rydData  = await RYD.fetchDislikes(videoId);
     const dislikes = rydData ? rydData.dislikes : null;
 
-    lastResult = YTVerdict.compute(views ?? 0, likes ?? 0, dislikes, comments ?? 0);
+    const commentsValue = comments === COMMENTS_DISABLED ? null : (comments ?? 0);
+    lastResult = YTVerdict.compute(views ?? 0, likes ?? 0, dislikes, commentsValue);
+    lastResult.commentsDisabled = comments === COMMENTS_DISABLED;
 
     if (lastResult.error || !lastResult.verdict) return;
 
-    // If comments came back 0, start watching for lazy-load
+    // If comments came back 0 (not disabled), start watching for lazy-load
     if (!comments || comments === 0) {
       setTimeout(startCommentObserver, 1000);
     }
