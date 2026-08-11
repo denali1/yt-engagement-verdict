@@ -45,7 +45,8 @@
 
   "web_accessible_resources": [
     "icons/*",
-    "welcome.html"
+    "welcome.html",
+    "welcome.js"
   ],
 
   "browser_specific_settings": {
