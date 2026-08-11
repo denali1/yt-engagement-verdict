@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "YT Engagement Verdict",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Analyzes YouTube video engagement (views, likes, dislikes, comments) and renders a statistically-grounded authenticity verdict below the view count.",
   "author": "Denali",
   "homepage_url": "https://github.com/Denali1/yt-engagement-verdict",
@@ -20,10 +20,15 @@
     "default_title": "YT Engagement Verdict"
   },
 
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+
   "content_scripts": [
     {
       "matches": ["*://www.youtube.com/watch*"],
-      "js": ["verdict.js", "ryd.js", "content.js"],
+      "js": ["verdict.js", "ryd.js", "reporter.js", "content.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"
     }
@@ -34,11 +39,13 @@
     "storage",
     "*://www.youtube.com/*",
     "*://returnyoutubedislikeapi.com/*",
-    "*://raw.githubusercontent.com/*"
+    "*://raw.githubusercontent.com/*",
+    "*://yt-engagement-verdict-api.steve-mcknelly-cloudflare.workers.dev/*"
   ],
 
   "web_accessible_resources": [
-    "icons/*"
+    "icons/*",
+    "welcome.html"
   ],
 
   "browser_specific_settings": {
@@ -47,7 +54,7 @@
       "strict_min_version": "140.0",
       "data_collection_permissions": {
         "required": ["none"],
-        "optional": []
+        "optional": ["technical_and_interaction"]
       }
     }
   }

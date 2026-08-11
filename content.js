@@ -449,6 +449,9 @@
 
     if (lastResult.error || !lastResult.verdict) return;
 
+    // Report anonymously if user has opted in
+    Reporter.report(videoId, lastResult).catch(() => {});
+
     // If comments came back 0 (not disabled), start watching for lazy-load
     if (!comments || comments === 0) {
       setTimeout(startCommentObserver, 1000);

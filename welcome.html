@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YT Engagement Verdict — Welcome</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Roboto", "Arial", sans-serif;
+      font-size: 14px;
+      line-height: 1.7;
+      background: #0f0f0f;
+      color: #f1f1f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 480px;
+      width: 100%;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 1.5rem;
+    }
+
+    .header-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: rgba(59, 130, 246, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #f1f1f1;
+    }
+
+    .header-subtitle {
+      font-size: 13px;
+      color: #aaa;
+    }
+
+    .intro {
+      font-size: 14px;
+      color: #ccc;
+      margin-bottom: 1rem;
+    }
+
+    .info-box {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .info-box-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f1f1f1;
+      margin-bottom: 0.5rem;
+    }
+
+    .info-box-content {
+      font-size: 13px;
+      color: #aaa;
+      line-height: 1.8;
+    }
+
+    .info-box-label + .info-box-label {
+      margin-top: 0.75rem;
+    }
+
+    .ip-notice {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.75rem;
+      font-size: 12px;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    .change-notice {
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 1.25rem;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-yes {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      background: #3b82f6;
+      border: none;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-yes:hover { background: #2563eb; }
+
+    .btn-no {
+      padding: 10px 16px;
+      border-radius: 8px;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #aaa;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-no:hover { background: rgba(255,255,255,0.05); }
+
+    .confirmed {
+      text-align: center;
+      padding: 1rem 0;
+      color: #aaa;
+      font-size: 14px;
+    }
+
+    .confirmed strong {
+      display: block;
+      font-size: 16px;
+      color: #f1f1f1;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="header-icon">📊</div>
+      <div>
+        <div class="header-title">YT Engagement Verdict</div>
+        <div class="header-subtitle">Help make the scoring smarter</div>
+      </div>
+    </div>
+
+    <p class="intro">
+      Right now scores are based on general benchmarks. If you opt in, the extension anonymously shares engagement data to help build a real dataset that makes the scoring more accurate for everyone.
+    </p>
+
+    <div class="info-box">
+      <div class="info-box-label">What gets shared</div>
+      <div class="info-box-content">
+        Video ID &nbsp;·&nbsp; View count &nbsp;·&nbsp; Like rate &nbsp;·&nbsp; Comment rate &nbsp;·&nbsp; Sentiment score &nbsp;·&nbsp; AI content label &nbsp;·&nbsp; Verdict and score
+      </div>
+      <div class="info-box-label">What never gets shared</div>
+      <div class="info-box-content">
+        Your identity &nbsp;·&nbsp; Your watch history &nbsp;·&nbsp; Anything that identifies you in our database
+      </div>
+    </div>
+
+    <div class="ip-notice">
+      ℹ️ Your IP address may be visible to Cloudflare and Neon as part of normal network routing. Neither is stored in our database.
+    </div>
+
+    <p class="change-notice">You can change this at any time in the extension popup.</p>
+
+    <div class="buttons" id="buttons">
+      <button class="btn-yes" id="btn-yes">Yes, help improve it</button>
+      <button class="btn-no" id="btn-no">No thanks</button>
+    </div>
+
+    <div class="confirmed" id="confirmed" hidden>
+      <strong id="confirmed-title"></strong>
+      <span id="confirmed-body"></span>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    async function setOptIn(value) {
+      await browser.storage.local.set({ telemetry_opted_in: value });
+
+      document.getElementById("buttons").hidden = true;
+      const confirmed = document.getElementById("confirmed");
+      confirmed.hidden = false;
+
+      if (value) {
+        document.getElementById("confirmed-title").textContent = "Thanks for helping out.";
+        document.getElementById("confirmed-body").textContent = "Your verdict data will be shared anonymously. You can turn this off anytime in the popup.";
+      } else {
+        document.getElementById("confirmed-title").textContent = "No problem.";
+        document.getElementById("confirmed-body").textContent = "The extension works great locally. You can always opt in later from the popup.";
+      }
+
+      setTimeout(() => window.close(), 3000);
+    }
+
+    document.getElementById("btn-yes").addEventListener("click", () => setOptIn(true));
+    document.getElementById("btn-no").addEventListener("click", () => setOptIn(false));
+  </script>
+</body>
+</html>

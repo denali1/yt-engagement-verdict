@@ -107,6 +107,27 @@
     display.appendChild(stats);
   }
 
+  // ─── Telemetry toggle ───────────────────────────────────────────────
+
+  const toggle = document.getElementById("telemetry-toggle");
+  const toggleLabel = document.getElementById("telemetry-label");
+
+  // Load current opt-in state
+  browser.storage.local.get("telemetry_opted_in").then(result => {
+    const optedIn = result.telemetry_opted_in === true;
+    toggle.checked = optedIn;
+    toggleLabel.textContent = optedIn ? "On" : "Off";
+    toggleLabel.style.color = optedIn ? "#4caf50" : "#555";
+  }).catch(() => {});
+
+  // Save on change
+  toggle.addEventListener("change", () => {
+    const optedIn = toggle.checked;
+    browser.storage.local.set({ telemetry_opted_in: optedIn });
+    toggleLabel.textContent = optedIn ? "On" : "Off";
+    toggleLabel.style.color = optedIn ? "#4caf50" : "#555";
+  });
+
   // ─── Get active tab ───────────────────────────────────────────────────────
 
   browser.tabs.query({ active: true, currentWindow: true }).then(tabs => {
