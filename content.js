@@ -36,7 +36,7 @@
   // Update selectors.json on GitHub to push fixes without a new release.
 
   const FALLBACK_SELECTORS = {
-    version: "1.0.1",
+    version: "1.0.3",
     views: [
       "ytd-watch-info-text span.yt-core-attributed-string",
       "#info .view-count",
@@ -58,7 +58,9 @@
       "#meta #actions",
       "#info-contents",
       "ytd-video-primary-info-renderer"
-    ]
+    ],
+    ai_label_container: "ytd-structured-description-content-renderer",
+    ai_label_text: "Made with AI"
   };
 
   // ─── Selector Loader ──────────────────────────────────────────────────────
@@ -241,6 +243,16 @@
     return null;
   }
 
+  function scrapeAiLabel() {
+    const container = activeSelectors.ai_label_container
+      ? document.querySelector(activeSelectors.ai_label_container)
+      : document.querySelector("ytd-structured-description-content-renderer");
+    if (!container) return false;
+    const labelText = activeSelectors.ai_label_text || "Made with AI";
+    return Array.from(container.querySelectorAll("span"))
+      .some(el => el.textContent.trim() === labelText);
+  }
+
   // ─── Widget Rendering ─────────────────────────────────────────────────────
 
   /** Create an element with optional className and textContent */
@@ -280,6 +292,10 @@
     const labelSpan = make("span", "ytev-label", verdict.label);
     labelSpan.style.color = verdict.color;
     header.appendChild(labelSpan);
+    if (result.isAiContent) {
+      const aiBadge = make("span", "ytev-ai-badge", "🤖 AI");
+      header.appendChild(aiBadge);
+    }
     const toggleBtn = make("button", "ytev-toggle", "▾");
     toggleBtn.setAttribute("aria-expanded", "false");
     toggleBtn.setAttribute("aria-label", "Show details");
@@ -424,10 +440,12 @@
 
     const rydData  = await RYD.fetchDislikes(videoId);
     const dislikes = rydData ? rydData.dislikes : null;
+    const isAiContent = scrapeAiLabel();
 
     const commentsValue = comments === COMMENTS_DISABLED ? null : (comments ?? 0);
     lastResult = YTVerdict.compute(views ?? 0, likes ?? 0, dislikes, commentsValue);
     lastResult.commentsDisabled = comments === COMMENTS_DISABLED;
+    lastResult.isAiContent = isAiContent;
 
     if (lastResult.error || !lastResult.verdict) return;
 

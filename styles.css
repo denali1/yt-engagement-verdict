@@ -60,6 +60,18 @@
   background: var(--yt-spec-10-percent-layer, rgba(0,0,0,0.08));
 }
 
+.ytev-ai-badge {
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 4px;
+  padding: 1px 6px;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+
 /* ── Score bar ── */
 
 .ytev-score-row {

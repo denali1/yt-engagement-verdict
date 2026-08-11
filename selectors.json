@@ -1,6 +1,6 @@
 {
   "_comment": "YT Engagement Verdict — Remote Selector List. Update this file to fix broken scrapers without shipping a new extension release. Installed copies refresh every 24 hours automatically. See CONTRIBUTING.md for the selector update workflow.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "updated": "2026-08-10",
   "views": [
     "ytd-watch-info-text span.yt-core-attributed-string",
@@ -27,5 +27,7 @@
     "#meta #actions",
     "#info-contents",
     "ytd-video-primary-info-renderer"
-  ]
+  ],
+  "ai_label_container": "ytd-structured-description-content-renderer",
+  "ai_label_text": "Made with AI"
 }
