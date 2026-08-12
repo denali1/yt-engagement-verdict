@@ -438,48 +438,44 @@
 
   function startCommentObserver() {
     if (commentObserver) {
-      commentObserver.disconnect();
+      clearInterval(commentObserver);
       commentObserver = null;
     }
-    const target = document.querySelector("#comments, ytd-comments");
-    if (!target) return;
 
     let attempts = 0;
-    const MAX_ATTEMPTS = 20;
+    const MAX_ATTEMPTS = 24; // 24 x 500ms = 12 seconds max
 
-    commentObserver = new MutationObserver(() => {
-      const comments = scrapeComments();
+    // Use polling instead of MutationObserver — less performance impact in Chrome
+    commentObserver = setInterval(() => {
       attempts++;
+      const comments = scrapeComments();
 
       if (comments && comments > 0 && lastResult) {
+        clearInterval(commentObserver);
+        commentObserver = null;
+
         const widget = document.getElementById(WIDGET_ID);
-        if (widget) {
-          const { inputs } = lastResult;
-          if (inputs.comments === 0 || inputs.comments === null) {
-            lastResult = YTVerdict.compute(inputs.views, inputs.likes, inputs.dislikes, comments);
-            lastResult.commentsDisabled = false;
-            lastResult.isAiContent = lastResult.isAiContent || false;
-            if (lastResult.verdict) {
-              const newWidget = renderWidget(lastResult, activeSelectors.version);
-              widget.parentNode.insertBefore(newWidget, widget);
-              widget.remove();
-            }
+        if (!widget) return;
+
+        const { inputs } = lastResult;
+        if (inputs.comments === 0 || inputs.comments === null) {
+          lastResult = YTVerdict.compute(inputs.views, inputs.likes, inputs.dislikes, comments);
+          lastResult.commentsDisabled = false;
+          lastResult.isAiContent = lastResult.isAiContent || false;
+          if (lastResult.verdict) {
+            const newWidget = renderWidget(lastResult, activeSelectors.version);
+            widget.parentNode.insertBefore(newWidget, widget);
+            widget.remove();
           }
         }
-        // Successfully found comments — stop observing
-        commentObserver.disconnect();
-        commentObserver = null;
         return;
       }
 
-      // Give up after MAX_ATTEMPTS
       if (attempts >= MAX_ATTEMPTS) {
-        commentObserver.disconnect();
+        clearInterval(commentObserver);
         commentObserver = null;
       }
-    });
-
-    commentObserver.observe(target, { childList: true, subtree: true, characterData: true });
+    }, 500);
   }
 
   // ─── Init ─────────────────────────────────────────────────────────────────
