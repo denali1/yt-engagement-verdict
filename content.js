@@ -29,7 +29,7 @@
   const SELECTOR_TTL_MS  = 24 * 60 * 60 * 1000; // 24 hours
   const SELECTOR_CACHE_KEY  = "ytev_selectors";
   const SELECTOR_FETCH_URL  =
-    "https://raw.githubusercontent.com/Denali1/yt-engagement-verdict/main/selectors.json";
+    "https://raw.githubusercontent.com/Denali1/yt-engagement-verdict/master/selectors.json";
 
   // ─── Fallback Selectors ───────────────────────────────────────────────────
   // These are baked in at build time and used when the remote fetch fails.
@@ -378,7 +378,7 @@
     methodology.appendChild(document.createElement("br"));
     methodology.appendChild(makeLink("https://github.com/Denali1/yt-engagement-verdict#methodology", "Methodology ↗"));
     methodology.appendChild(document.createTextNode(" · "));
-    methodology.appendChild(makeLink("https://github.com/Denali1/yt-engagement-verdict/blob/main/selectors.json", "Selector source ↗"));
+    methodology.appendChild(makeLink("https://github.com/Denali1/yt-engagement-verdict/blob/master/selectors.json", "Selector source ↗"));
     details.appendChild(methodology);
 
     widget.appendChild(details);
