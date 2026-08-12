@@ -374,7 +374,7 @@
     Reporter.report(videoId, lastResult).catch(() => {});
 
     if (!comments || comments === 0) {
-      setTimeout(startCommentObserver, 1000);
+      setTimeout(startCommentObserver, 2000);
     }
 
     const widget = renderWidget(lastResult, activeSelectors.version);
@@ -430,7 +430,7 @@
         document.getElementById(WIDGET_ID)?.remove();
       }
     }
-  }, 500);
+  }, 1000);
 
   // ─── MutationObserver ─────────────────────────────────────────────────────
 
@@ -444,20 +444,36 @@
     const target = document.querySelector("#comments, ytd-comments");
     if (!target) return;
 
+    let attempts = 0;
+    const MAX_ATTEMPTS = 20;
+
     commentObserver = new MutationObserver(() => {
       const comments = scrapeComments();
+      attempts++;
+
       if (comments && comments > 0 && lastResult) {
         const widget = document.getElementById(WIDGET_ID);
-        if (!widget) return;
-        const { inputs } = lastResult;
-        if (inputs.comments === 0 || inputs.comments === null) {
-          lastResult = YTVerdict.compute(inputs.views, inputs.likes, inputs.dislikes, comments);
-          if (lastResult.verdict) {
-            const newWidget = renderWidget(lastResult, activeSelectors.version);
-            widget.parentNode.insertBefore(newWidget, widget);
-            widget.remove();
+        if (widget) {
+          const { inputs } = lastResult;
+          if (inputs.comments === 0 || inputs.comments === null) {
+            lastResult = YTVerdict.compute(inputs.views, inputs.likes, inputs.dislikes, comments);
+            lastResult.commentsDisabled = false;
+            lastResult.isAiContent = lastResult.isAiContent || false;
+            if (lastResult.verdict) {
+              const newWidget = renderWidget(lastResult, activeSelectors.version);
+              widget.parentNode.insertBefore(newWidget, widget);
+              widget.remove();
+            }
           }
         }
+        // Successfully found comments — stop observing
+        commentObserver.disconnect();
+        commentObserver = null;
+        return;
+      }
+
+      // Give up after MAX_ATTEMPTS
+      if (attempts >= MAX_ATTEMPTS) {
         commentObserver.disconnect();
         commentObserver = null;
       }
