@@ -9,6 +9,8 @@ Thumbs.db
 
 # Local only
 ROADMAP.md
+reporter.js
+chrome/reporter.js
 
 # Build artifacts
 *.zip
