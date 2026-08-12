@@ -442,6 +442,12 @@
       commentObserver = null;
     }
 
+    // Scroll comments into view to trigger YouTube's lazy load
+    const commentsEl = document.querySelector("#comments");
+    if (commentsEl) {
+      commentsEl.scrollIntoView({ behavior: "instant", block: "start" });
+    }
+
     let attempts = 0;
     const MAX_ATTEMPTS = 24; // 24 x 500ms = 12 seconds max
 
@@ -453,6 +459,9 @@
       if (comments && comments > 0 && lastResult) {
         clearInterval(commentObserver);
         commentObserver = null;
+
+        // Scroll back to top so user sees the video, not the comments
+        window.scrollTo({ top: 0, behavior: "instant" });
 
         const widget = document.getElementById(WIDGET_ID);
         if (!widget) return;
