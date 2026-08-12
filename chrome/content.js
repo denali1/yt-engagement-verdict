@@ -464,7 +464,6 @@
         window.scrollTo({ top: 0, behavior: "instant" });
 
         const widget = document.getElementById(WIDGET_ID);
-        if (!widget) return;
 
         const { inputs } = lastResult;
         if (inputs.comments === 0 || inputs.comments === null) {
@@ -473,8 +472,13 @@
           lastResult.isAiContent = lastResult.isAiContent || false;
           if (lastResult.verdict) {
             const newWidget = renderWidget(lastResult, activeSelectors.version);
-            widget.parentNode.insertBefore(newWidget, widget);
-            widget.remove();
+            if (widget && widget.parentNode) {
+              widget.parentNode.insertBefore(newWidget, widget);
+              widget.remove();
+            } else {
+              // Widget was removed — re-inject it
+              injectWidget(newWidget);
+            }
           }
         }
         return;
