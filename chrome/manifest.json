@@ -11,7 +11,7 @@
   },
 
   "action": {
-    "default_popup": "chrome/popup.html",
+    "default_popup": "popup.html",
     "default_icon": {
       "48": "icons/icon48.png",
       "96": "icons/icon96.png"
@@ -20,13 +20,13 @@
   },
 
   "background": {
-    "service_worker": "chrome/background.js"
+    "service_worker": "background.js"
   },
 
   "content_scripts": [
     {
       "matches": ["*://www.youtube.com/watch*"],
-      "js": ["verdict.js", "ryd.js", "chrome/reporter.js", "chrome/content.js"],
+      "js": ["verdict.js", "ryd.js", "reporter.js", "content.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"
     }
@@ -46,7 +46,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "welcome.html", "chrome/welcome.js"],
+      "resources": ["icons/*", "welcome.html", "welcome.js"],
       "matches": ["<all_urls>"]
     }
   ]
