@@ -442,53 +442,55 @@
       commentObserver = null;
     }
 
-    // Scroll comments into view to trigger YouTube's lazy load
     const commentsEl = document.querySelector("#comments");
-    if (commentsEl) {
-      commentsEl.scrollIntoView({ behavior: "instant", block: "start" });
-    }
+    if (!commentsEl) return;
 
-    let attempts = 0;
-    const MAX_ATTEMPTS = 24; // 24 x 500ms = 12 seconds max
+    // Use IntersectionObserver — fires when user naturally scrolls to comments
+    // No forced scrolling, no disruption to video playback
+    const intersectionObs = new IntersectionObserver((entries) => {
+      if (!entries[0].isIntersecting) return;
+      intersectionObs.disconnect();
 
-    // Use polling instead of MutationObserver — less performance impact in Chrome
-    commentObserver = setInterval(() => {
-      attempts++;
-      const comments = scrapeComments();
+      // Comments are now in view — poll for the count to populate
+      let attempts = 0;
+      const MAX_ATTEMPTS = 20;
 
-      if (comments && comments > 0 && lastResult) {
-        clearInterval(commentObserver);
-        commentObserver = null;
+      commentObserver = setInterval(() => {
+        attempts++;
+        const comments = scrapeComments();
 
-        // Scroll back to top so user sees the video, not the comments
-        window.scrollTo({ top: 0, behavior: "instant" });
+        if (comments && comments > 0 && lastResult) {
+          clearInterval(commentObserver);
+          commentObserver = null;
 
-        const widget = document.getElementById(WIDGET_ID);
-
-        const { inputs } = lastResult;
-        if (inputs.comments === 0 || inputs.comments === null) {
-          lastResult = YTVerdict.compute(inputs.views, inputs.likes, inputs.dislikes, comments);
-          lastResult.commentsDisabled = false;
-          lastResult.isAiContent = lastResult.isAiContent || false;
-          if (lastResult.verdict) {
-            const newWidget = renderWidget(lastResult, activeSelectors.version);
-            if (widget && widget.parentNode) {
-              widget.parentNode.insertBefore(newWidget, widget);
-              widget.remove();
-            } else {
-              // Widget was removed — re-inject it
-              injectWidget(newWidget);
+          const widget = document.getElementById(WIDGET_ID);
+          const { inputs } = lastResult;
+          if (inputs.comments === 0 || inputs.comments === null) {
+            lastResult = YTVerdict.compute(inputs.views, inputs.likes, inputs.dislikes, comments);
+            lastResult.commentsDisabled = false;
+            lastResult.isAiContent = lastResult.isAiContent || false;
+            if (lastResult.verdict) {
+              const newWidget = renderWidget(lastResult, activeSelectors.version);
+              if (widget && widget.parentNode) {
+                widget.parentNode.insertBefore(newWidget, widget);
+                widget.remove();
+              } else {
+                injectWidget(newWidget);
+              }
             }
           }
+          return;
         }
-        return;
-      }
 
-      if (attempts >= MAX_ATTEMPTS) {
-        clearInterval(commentObserver);
-        commentObserver = null;
-      }
-    }, 500);
+        if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(commentObserver);
+          commentObserver = null;
+        }
+      }, 300);
+
+    }, { threshold: 0.1 });
+
+    intersectionObs.observe(commentsEl);
   }
 
   // ─── Init ─────────────────────────────────────────────────────────────────
