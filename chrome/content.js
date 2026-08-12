@@ -291,6 +291,12 @@
       details.appendChild(commentsNote);
     }
 
+    if (result.commentsPending) {
+      const pendingNote = make("div", "ytev-ryd-note ytev-ryd-missing");
+      pendingNote.textContent = "Scroll down to load comment data — score will update automatically";
+      details.appendChild(pendingNote);
+    }
+
     const rydNote = make("div", hasSentiment ? "ytev-ryd-note" : "ytev-ryd-note ytev-ryd-missing");
     if (hasSentiment) {
       rydNote.appendChild(document.createTextNode("Dislikes via "));
@@ -368,6 +374,7 @@
     lastResult = YTVerdict.compute(views ?? 0, likes ?? 0, dislikes, commentsValue);
     lastResult.commentsDisabled = comments === COMMENTS_DISABLED;
     lastResult.isAiContent = isAiContent;
+    lastResult.commentsPending = !comments || comments === 0;
 
     if (lastResult.error || !lastResult.verdict) return;
 
@@ -468,6 +475,7 @@
           if (inputs.comments === 0 || inputs.comments === null) {
             lastResult = YTVerdict.compute(inputs.views, inputs.likes, inputs.dislikes, comments);
             lastResult.commentsDisabled = false;
+            lastResult.commentsPending = false;
             lastResult.isAiContent = lastResult.isAiContent || false;
             if (lastResult.verdict) {
               const newWidget = renderWidget(lastResult, activeSelectors.version);
