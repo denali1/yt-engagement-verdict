@@ -506,9 +506,25 @@
   async function init() {
     await loadSelectors();
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", run);
+      document.addEventListener("DOMContentLoaded", () => setTimeout(run, 1500));
     } else {
-      run();
+      const titleEl = document.querySelector("h1.ytd-watch-metadata, ytd-watch-metadata h1");
+      if (titleEl && titleEl.textContent.trim()) {
+        setTimeout(run, 500);
+      } else {
+        const readyObserver = new MutationObserver(() => {
+          const title = document.querySelector("h1.ytd-watch-metadata, ytd-watch-metadata h1");
+          if (title && title.textContent.trim()) {
+            readyObserver.disconnect();
+            setTimeout(run, 500);
+          }
+        });
+        readyObserver.observe(document.body, { childList: true, subtree: true });
+        setTimeout(() => {
+          readyObserver.disconnect();
+          run();
+        }, 3000);
+      }
     }
   }
 

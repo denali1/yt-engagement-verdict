@@ -567,14 +567,37 @@
 
   // ─── Init ─────────────────────────────────────────────────────────────────
   // Load selectors first, then start watching the page.
+  // On cold browser load, YouTube's own rendering may not be complete even
+  // after DOMContentLoaded — watch for the video title to confirm readiness.
 
   async function init() {
     await loadSelectors();
 
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", run);
+      document.addEventListener("DOMContentLoaded", () => setTimeout(run, 1500));
     } else {
-      run();
+      // DOM is ready but YouTube may still be rendering
+      // Watch for the video title element as a readiness signal
+      const titleEl = document.querySelector("h1.ytd-watch-metadata, ytd-watch-metadata h1");
+      if (titleEl && titleEl.textContent.trim()) {
+        // Title already rendered — run with a short delay
+        setTimeout(run, 500);
+      } else {
+        // Title not yet rendered — watch for it
+        const readyObserver = new MutationObserver(() => {
+          const title = document.querySelector("h1.ytd-watch-metadata, ytd-watch-metadata h1");
+          if (title && title.textContent.trim()) {
+            readyObserver.disconnect();
+            setTimeout(run, 500);
+          }
+        });
+        readyObserver.observe(document.body, { childList: true, subtree: true });
+        // Fallback — run after 3 seconds regardless
+        setTimeout(() => {
+          readyObserver.disconnect();
+          run();
+        }, 3000);
+      }
     }
   }
 
