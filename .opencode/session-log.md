@@ -121,5 +121,5 @@ Two correctness items from the code review: (1) unconditional `Reporter.report()
 - Unify divergent FF/Chrome content.js implementations (architecture session).
 
 ### Commit
-- [hash]
+- c4282f3
 
