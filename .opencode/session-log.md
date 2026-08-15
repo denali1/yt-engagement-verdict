@@ -269,7 +269,7 @@ Established the first test suites for both repos: unit tests for `verdict.js`, a
 - Manual verify: welcome close-vs-redirect flow in FF + Chrome (Phase 10 fix).
 
 ### Commit
-- 
+- 1303b02 (extension) — API repo: 3345fd8
 
 ---
 
