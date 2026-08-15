@@ -6,6 +6,8 @@
  *   1. On first install, open the welcome/opt-in tab
  *   2. Programmatically inject content scripts on YouTube watch pages
  *      to ensure cold browser load works without requiring a refresh
+ *   3. If scripts are already injected, trigger a navigation reset instead
+ *      of re-injecting to avoid const redeclaration errors
  */
 
 "use strict";
@@ -20,31 +22,30 @@ browser.runtime.onInstalled.addListener((details) => {
 });
 
 // Inject content scripts programmatically when a YouTube watch page loads
-// This is the reliable fix for cold browser load — doesn't depend on
-// document_idle timing or YouTube's SPA events
 browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (
     changeInfo.status === "complete" &&
     tab.url &&
     tab.url.includes("youtube.com/watch")
   ) {
-    // Check if our widget is already injected
+    // First check if scripts are already running in this tab
     browser.tabs.executeScript(tabId, {
-      code: "document.getElementById('ytev-widget') !== null"
+      code: "typeof YTVerdict !== 'undefined'"
     }).then(results => {
-      if (results && results[0] === true) return; // Already injected
+      if (results && results[0] === true) {
+        // Scripts already loaded — just trigger a navigation reset
+        browser.tabs.executeScript(tabId, {
+          code: "window.dispatchEvent(new Event('yt-navigate-finish'));"
+        });
+      } else {
+        // Fresh injection needed
+        const scripts = ["verdict.js", "ryd.js", "reporter.js", "content.js"];
+        scripts.reduce((chain, script) => {
+          return chain.then(() => browser.tabs.executeScript(tabId, { file: script }));
+        }, Promise.resolve());
 
-      // Inject our scripts in order
-      const scripts = ["verdict.js", "ryd.js", "reporter.js", "content.js"];
-      scripts.reduce((chain, script) => {
-        return chain.then(() => browser.tabs.executeScript(tabId, { file: script }));
-      }, Promise.resolve());
-
-      // Inject CSS
-      browser.tabs.insertCSS(tabId, { file: "styles.css" });
-
-    }).catch(() => {
-      // Tab may not be ready yet — ignore
-    });
+        browser.tabs.insertCSS(tabId, { file: "styles.css" });
+      }
+    }).catch(() => {});
   }
 });

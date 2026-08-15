@@ -6,6 +6,8 @@
  *   1. On first install, open the welcome/opt-in tab
  *   2. Programmatically inject content scripts on YouTube watch pages
  *      to ensure cold browser load works without requiring a refresh
+ *   3. If scripts are already injected, trigger a navigation reset instead
+ *      of re-injecting to avoid const redeclaration errors
  */
 
 "use strict";
@@ -26,27 +28,31 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     tab.url &&
     tab.url.includes("youtube.com/watch")
   ) {
-    // Check if our widget is already injected
+    // First check if scripts are already running in this tab
     chrome.scripting.executeScript({
       target: { tabId },
-      func: () => document.getElementById("ytev-widget") !== null
+      func: () => typeof YTVerdict !== "undefined"
     }).then(results => {
-      if (results && results[0]?.result === true) return; // Already injected
-
-      // Inject scripts in order
-      ["verdict.js", "ryd.js", "reporter.js", "content.js"].reduce((chain, script) => {
-        return chain.then(() => chrome.scripting.executeScript({
+      if (results && results[0]?.result === true) {
+        // Scripts already loaded — just trigger a navigation reset
+        chrome.scripting.executeScript({
           target: { tabId },
-          files: [script]
-        }));
-      }, Promise.resolve());
+          func: () => window.dispatchEvent(new Event("yt-navigate-finish"))
+        });
+      } else {
+        // Fresh injection needed
+        ["verdict.js", "ryd.js", "reporter.js", "content.js"].reduce((chain, script) => {
+          return chain.then(() => chrome.scripting.executeScript({
+            target: { tabId },
+            files: [script]
+          }));
+        }, Promise.resolve());
 
-      // Inject CSS
-      chrome.scripting.insertCSS({
-        target: { tabId },
-        files: ["styles.css"]
-      });
-
+        chrome.scripting.insertCSS({
+          target: { tabId },
+          files: ["styles.css"]
+        });
+      }
     }).catch(() => {});
   }
 });
