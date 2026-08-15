@@ -22,37 +22,49 @@ chrome.runtime.onInstalled.addListener((details) => {
 });
 
 // Inject content scripts programmatically when a YouTube watch page loads
+const injectingTabs = new Set();
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (
-    changeInfo.status === "complete" &&
-    tab.url &&
-    tab.url.includes("youtube.com/watch")
+    changeInfo.status !== "complete" ||
+    !tab.url ||
+    !tab.url.includes("youtube.com/watch") ||
+    injectingTabs.has(tabId)
   ) {
-    // First check if scripts are already running in this tab
-    chrome.scripting.executeScript({
-      target: { tabId },
-      func: () => typeof YTVerdict !== "undefined"
-    }).then(results => {
-      if (results && results[0]?.result === true) {
-        // Scripts already loaded — just trigger a navigation reset
-        chrome.scripting.executeScript({
-          target: { tabId },
-          func: () => window.dispatchEvent(new Event("yt-navigate-finish"))
-        });
-      } else {
-        // Fresh injection needed
-        ["verdict.js", "ryd.js", "reporter.js", "content.js"].reduce((chain, script) => {
-          return chain.then(() => chrome.scripting.executeScript({
-            target: { tabId },
-            files: [script]
-          }));
-        }, Promise.resolve());
-
-        chrome.scripting.insertCSS({
-          target: { tabId },
-          files: ["styles.css"]
-        });
-      }
-    }).catch(() => {});
+    return;
   }
+
+  injectingTabs.add(tabId);
+
+  // First check if scripts are already running in this tab
+  chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => typeof YTVerdict !== "undefined"
+  }).then(results => {
+    if (results && results[0]?.result === true) {
+      // Scripts already loaded — just trigger a navigation reset
+      return chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => window.dispatchEvent(new Event("yt-navigate-finish"))
+      });
+    }
+
+    // Fresh injection needed
+    return ["verdict.js", "ryd.js", "reporter.js", "content.js"].reduce((chain, script) => {
+      return chain.then(() => chrome.scripting.executeScript({
+        target: { tabId },
+        files: [script]
+      }));
+    }, Promise.resolve())
+      .then(() => chrome.scripting.insertCSS({
+        target: { tabId },
+        files: ["styles.css"]
+      }));
+  }).catch(() => {}).finally(() => {
+    injectingTabs.delete(tabId);
+  });
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  injectingTabs.delete(tabId);
 });

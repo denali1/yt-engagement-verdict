@@ -81,5 +81,45 @@ Two correctness items from the code review: (1) unconditional `Reporter.report()
 - FF/Chrome divergence tracking: FF MutationObserver vs Chrome IntersectionObserver.
 
 ### Commit
+- 19991e2
+
+---
+
+## Session 2026-08-15 — Phase 2: Correctness (Part 2) — Injection TOCTOU race
+
+### Context
+`tabs.onUpdated` can fire `status === "complete"` more than once per navigation (YouTube SPA). The "already injected" check is an async `executeScript` round-trip, so two rapid events could both pass the `typeof YTVerdict` check and resolve `false` before the first injection finished — double injection, `const` redeclaration error in the isolated world.
+
+### Decisions
+1. Module-level `const injectingTabs = new Set()` in both `background.js` and `chrome/background.js`.
+2. Tab ID is added to the set **before** the async typeof check — the race window is the check round-trip, not the full injection chain, so the guard must close it up front. A later `complete` event for the same tab sees `injectingTabs.has(tabId)` and returns early.
+3. Single `.finally(() => injectingTabs.delete(tabId))` covers the dispatch-reset branch AND the fresh-injection branch — cleanup on success and on failure.
+4. New `tabs.onRemoved` listener deletes the entry if the tab closes mid-injection.
+5. `insertCSS` now chained after the script `reduce` — styles only land if all four scripts loaded (previously inserted unconditionally even when script injection had failed).
+6. Restructured the handler to early-return guards + return-from-promise so the single `finally` covers every path; the dispatch branch now returns its promise so cleanup waits for it.
+7. MV3 service-worker ephemerality dismissed as a concern — the set only needs to span the milliseconds between rapid events, and the pending injection promises keep the worker alive.
+
+### Assumptions baked in
+- `Promise.prototype.finally` is available (FF 58+, Chrome 63+); both trees target far newer minimums.
+- A genuinely already-injected tab still takes the check path (set is empty by then) and dispatches the `yt-navigate-finish` reset — prior behavior preserved.
+
+### What was ruled out
+- Debounce/timing-based guards — racy and fragile compared to an explicit in-flight set.
+- Sharing one set across the FF and Chrome trees — they are separate extension builds.
+- Persisting in-flight state across MV3 worker restarts — unnecessary (see decision 7); a worker death mid-chain abandons the injection regardless.
+
+### Files changed (all committed)
+- `background.js`
+- `chrome/background.js`
+
+### Last file / line
+- `chrome/background.js:68-70` — `chrome.tabs.onRemoved` cleanup listener.
+
+### Sitrep for next session
+- Remaining eval items: full-page DOM-scan perf in the retry loop, bar-color vs verdict threshold mismatch, remote-selector try/catch robustness.
+- Manual verify: rapid double-navigation in both FF + Chrome yields no redeclaration errors in the page console.
+- Unify divergent FF/Chrome content.js implementations (architecture session).
+
+### Commit
 - [hash]
 

@@ -22,30 +22,42 @@ browser.runtime.onInstalled.addListener((details) => {
 });
 
 // Inject content scripts programmatically when a YouTube watch page loads
+const injectingTabs = new Set();
+
 browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (
-    changeInfo.status === "complete" &&
-    tab.url &&
-    tab.url.includes("youtube.com/watch")
+    changeInfo.status !== "complete" ||
+    !tab.url ||
+    !tab.url.includes("youtube.com/watch") ||
+    injectingTabs.has(tabId)
   ) {
-    // First check if scripts are already running in this tab
-    browser.tabs.executeScript(tabId, {
-      code: "typeof YTVerdict !== 'undefined'"
-    }).then(results => {
-      if (results && results[0] === true) {
-        // Scripts already loaded — just trigger a navigation reset
-        browser.tabs.executeScript(tabId, {
-          code: "window.dispatchEvent(new Event('yt-navigate-finish'));"
-        });
-      } else {
-        // Fresh injection needed
-        const scripts = ["verdict.js", "ryd.js", "reporter.js", "content.js"];
-        scripts.reduce((chain, script) => {
-          return chain.then(() => browser.tabs.executeScript(tabId, { file: script }));
-        }, Promise.resolve());
-
-        browser.tabs.insertCSS(tabId, { file: "styles.css" });
-      }
-    }).catch(() => {});
+    return;
   }
+
+  injectingTabs.add(tabId);
+
+  // First check if scripts are already running in this tab
+  browser.tabs.executeScript(tabId, {
+    code: "typeof YTVerdict !== 'undefined'"
+  }).then(results => {
+    if (results && results[0] === true) {
+      // Scripts already loaded — just trigger a navigation reset
+      return browser.tabs.executeScript(tabId, {
+        code: "window.dispatchEvent(new Event('yt-navigate-finish'));"
+      });
+    }
+
+    // Fresh injection needed
+    const scripts = ["verdict.js", "ryd.js", "reporter.js", "content.js"];
+    return scripts.reduce((chain, script) => {
+      return chain.then(() => browser.tabs.executeScript(tabId, { file: script }));
+    }, Promise.resolve())
+      .then(() => browser.tabs.insertCSS(tabId, { file: "styles.css" }));
+  }).catch(() => {}).finally(() => {
+    injectingTabs.delete(tabId);
+  });
+});
+
+browser.tabs.onRemoved.addListener((tabId) => {
+  injectingTabs.delete(tabId);
 });
