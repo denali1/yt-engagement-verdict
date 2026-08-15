@@ -177,5 +177,5 @@ The extension shipped two divergent codebases: an MV2 Firefox build (root) and a
 - Firefox `about:debugging` check that MV3 service_worker + `browser.scripting` work on FF 140.
 
 ### Commit
-- [hash]
+- bf35cff
 
