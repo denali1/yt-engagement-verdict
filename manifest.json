@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "YT Engagement Verdict",
   "version": "1.2.1",
-  "description": "Analyzes YouTube video engagement (views, likes, dislikes, comments) and renders a statistically-grounded authenticity verdict below the view count.",
+  "description": "Analyzes YouTube engagement (views, likes, dislikes, comments) and shows a data-driven authenticity verdict below the view count.",
   "author": "Denali",
   "homepage_url": "https://github.com/Denali1/yt-engagement-verdict",
 

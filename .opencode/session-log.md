@@ -404,6 +404,32 @@ Local testing of the 1.2.0 MV3 build in Firefox 154 beta rejected the extension 
 
 ---
 
+## Session 2026-08-15 — manifest description length (minor)
+
+### Context
+Chrome Web Store limits the manifest `description` to 132 characters; the v1.2.1 description was 148.
+
+### Decisions
+1. Rewrote `manifest.json:5` description to 129 chars: "Analyzes YouTube engagement (views, likes, dislikes, comments) and shows a data-driven authenticity verdict below the view count." Dropped "video", "statistically-grounded", "renders" for length while keeping the signal list and verdict claim.
+2. No version bump — description-only change; v1.2.1 already carries the Phase 14 manifest work.
+
+### Verification
+- `node -e require(...)` parses; `description.length` = 129 ≤ 132.
+
+### Files changed
+- `manifest.json` (committed)
+
+### Last file / line
+- `manifest.json:5` — description.
+
+### Sitrep
+- Nothing new; carries the Phase 14 sitrep forward (manual FF/Chrome reload verify, API `/health` 1.2.1 drift decision, AMO re-submit).
+
+### Commit
+- 
+
+---
+
 ## Session 2026-08-15 — Phase 10: Repo Hygiene
 
 ### Context
