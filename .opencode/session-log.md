@@ -273,6 +273,52 @@ Established the first test suites for both repos: unit tests for `verdict.js`, a
 
 ---
 
+## Session 2026-08-15 — Phase 12: Robustness + UI Consistency (brief's Phases 4 & 5)
+
+### Context
+Final session before shipping 1.2.0. Four items across three committed files (content.js, popup.js, styles.css) plus one gitignored file (reporter.js). No changes to verdict.js, ryd.js, background.js, manifest.json, or the API repo.
+
+### Decisions
+1. **Phase 4.1 — `safeQuery()` helper in content.js.** Rather than wrapping each scrape loop in try/catch, a single guarded `querySelector` wrapper (`content.js:151-167`) satisfies the brief: on `SyntaxError` it logs a `[YTEV] Bad selector "…"` debug line and returns `null` (fall through to the next selector in the list); other errors rethrow. Every bare `document.querySelector` was converted — scrapeViews, scrapeLikes, scrapeComments, scrapeAiLabel (container + fallback), injectWidget's inject_before loop, the comment-observer targets (`#comments`, `#comments #count`, `ytd-comments-header-renderer`), and the title-readiness probe (both occurrences). The chained `countEl.closest(...).querySelector("span…")` and `container.querySelectorAll("span")` calls use hardcoded selectors and were left bare (they cannot throw SyntaxError). Verified by grep: the only remaining `document.querySelector` in content.js is inside safeQuery itself.
+2. **Phase 4.2 — telemetry throttle/dedup in reporter.js.** `REPORT_THROTTLE_MS = 60_000` + module-level `lastReportedVideoId`/`lastReportedAt`. `report()` records the videoId before the POST and skips if the same videoId was reported within the window — covers the initial scrape AND comment-observer recomputes. Record-before-fetch chosen over record-on-success: the observer recompute fires within ~2s, and the intent is one POST per video per page view; a failed POST simply isn't retried for 60s (acceptable — telemetry is best-effort, errors are already swallowed).
+3. **GITIGNORE SITUATION (logged per brief):** reporter.js is in `.gitignore` ("Local only"), so the throttle/dedup changes are NOT committed — but reporter.js IS in build.ps1's file list, so the changes ship inside the built XPI/ZIP packages. Confirmed present locally and absent from `git status`.
+4. **Phase 5.1 — `barColor()` deleted from popup.js.** The function (popup.js:13-19) re-copied the 0.20/0.55/0.90 bands and colors from verdict.js. The popup already receives `verdict.color` in the GET_VERDICT response, so the call site now uses `verdict.color` directly. Deletion rationale: the color bands now exist in exactly one place (verdict.js `scoreToVerdict`); popup.js's duplicate was a drift hazard and a violation of the single-source-of-truth goal. Verified equivalent: `barColor(score, max)` returned exactly `verdict.color` for every score/maxScore combo (same bands, same hex values).
+5. **Phase 5.2 — bar color from percentage, not absolute composite.** `content.js` renderWidget now sets `data-score` to `pct` (0-100, already computed at line 243) instead of the absolute composite; `data-max` unchanged. **Implementation note:** CSS cannot range-match attribute values (`[data-score="20"]` only matches exact), so the brief's "percentage ranges" cannot be expressed as bare attribute selectors without enumerating ~100 values. Cleaner solution: content.js also sets `data-band` = 0/1/2/3 from the same `scoreToVerdict` thresholds (≤20 → 0, ≤55 → 1, ≤90 → 2, else 3), and styles.css keys the four bar colors off `data-band`. `data-score` still carries the raw percentage as the brief requires. This fixes the flagged mismatch: 4/4 (Fire) and 2/2 (Fire) now render the fire gradient instead of green/orange; 1/2 (Garbage) renders orange instead of red.
+6. **Version bump — not needed.** The brief says "bump to 1.2.0", but manifest.json is already 1.2.0 (bumped during MV3 unification, HEAD confirmed). No manifest change made; it's excluded from the commit for that reason.
+
+### Assumptions baked in
+- CSS attribute selectors can't express numeric ranges — hence the `data-band` addition alongside `data-score` (documented in both files).
+- `verdict.color` is equivalent to the old `barColor()` output — verified by inspection of the identical bands/hex values.
+- Nothing else reads `data-score` (grep confirmed: only the widget sets it and only CSS consumed it); changing its semantics is safe.
+
+### What was ruled out
+- Guarding the two hardcoded chained selectors (can't throw; noise).
+- Record-on-success for the throttle timestamp (would re-fire on network failure — acceptable either way, chose simpler).
+- Enumerating ~100 `[data-score="N"]` CSS selectors to avoid the `data-band` attribute (unmaintainable).
+- Setting the bar color inline from `verdict.color` (would lose the green/fire gradients that styles.css defines).
+
+### Files changed
+- `content.js` (committed) — safeQuery + all lookups; data-score=pct + data-band
+- `popup.js` (committed) — barColor deleted; verdict.color used
+- `styles.css` (committed) — data-band colour bands
+- `reporter.js` (NOT committed — gitignored) — throttle/dedup; ships via build.ps1 packages
+- `ROADMAP.md` (gitignored, local) — Phase 12 entry
+- `manifest.json` — UNCHANGED (already 1.2.0)
+
+### Last file / line
+- `content.js:262-269` — widget data-score/data-max/data-band attributes.
+
+### Sitrep for next session
+- **Manual verify (required before release):** build via build.ps1 and check the widget bar colour on a video where signals are missing (e.g. RYD down → maxScore 4, and comments disabled → maxScore 2) — the bar must match the verdict colour band, not the absolute score.
+- Latent-bug fix session (three verdict.js items from Phase 11 log) still queued.
+- Worker `/health` → 1.2.0 bump (cross-repo) — update the health test assertion alongside.
+- If telemetry correctness matters, consider un-ignoring reporter.js or mirroring the throttle in a committed file — currently local-only by design.
+
+### Commit
+- 
+
+---
+
 ## Session 2026-08-15 — Phase 10: Repo Hygiene
 
 ### Context

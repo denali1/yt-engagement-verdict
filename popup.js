@@ -10,14 +10,6 @@
     return "dot-low";
   }
 
-  function barColor(score, max) {
-    const pct = score / max;
-    if (pct <= 0.20) return "#ff4444";
-    if (pct <= 0.55) return "#ff8c00";
-    if (pct <= 0.90) return "#4caf50";
-    return "#ff6b35";
-  }
-
   function formatNum(n) {
     if (n === null || n === undefined) return "—";
     if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + "B";
@@ -68,7 +60,7 @@
     const barWrap = el("div", "bar-wrap");
     const barFill = el("div", "bar-fill");
     barFill.style.width = `${pct}%`;
-    barFill.style.background = barColor(composite, maxScore);
+    barFill.style.background = verdict.color;
     barWrap.appendChild(barFill);
     display.appendChild(barWrap);
 

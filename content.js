@@ -148,9 +148,26 @@
 
   // ─── DOM Scraping (selector-driven) ──────────────────────────────────────
 
+  /**
+   * querySelector that can't kill a scrape. selectors.json is remote and
+   * community-edited — a malformed selector throws SyntaxError. Log the
+   * offending selector and fall through to the next one in the list.
+   */
+  function safeQuery(sel) {
+    try {
+      return document.querySelector(sel);
+    } catch (e) {
+      if (e instanceof SyntaxError) {
+        console.debug(`[YTEV] Bad selector "${sel}": ${e.message}`);
+        return null;
+      }
+      throw e;
+    }
+  }
+
   function scrapeViews() {
     for (const sel of activeSelectors.views) {
-      const el = document.querySelector(sel);
+      const el = safeQuery(sel);
       if (el) {
         const val = parseYTNumber(el.textContent);
         if (val !== null) return val;
@@ -161,7 +178,7 @@
 
   function scrapeLikes() {
     for (const sel of activeSelectors.likes) {
-      const el = document.querySelector(sel);
+      const el = safeQuery(sel);
       if (!el) continue;
       // Try aria-label first (most reliable)
       // YouTube uses "like this video along with 8,331 other people"
@@ -191,12 +208,12 @@
 
   function scrapeComments() {
     // Check if comments are turned off before trying selectors
-    const msg = document.querySelector("ytd-message-renderer");
+    const msg = safeQuery("ytd-message-renderer");
     if (msg && /comments are turned off/i.test(msg.textContent)) {
       return COMMENTS_DISABLED;
     }
     for (const sel of activeSelectors.comments) {
-      const el = document.querySelector(sel);
+      const el = safeQuery(sel);
       if (el) {
         const val = parseYTNumber(el.textContent);
         if (val !== null) return val;
@@ -207,8 +224,8 @@
 
   function scrapeAiLabel() {
     const container = activeSelectors.ai_label_container
-      ? document.querySelector(activeSelectors.ai_label_container)
-      : document.querySelector("ytd-structured-description-content-renderer");
+      ? safeQuery(activeSelectors.ai_label_container)
+      : safeQuery("ytd-structured-description-content-renderer");
     if (!container) return false;
     const labelText = activeSelectors.ai_label_text || "Made with AI";
     return Array.from(container.querySelectorAll("span"))
@@ -245,8 +262,12 @@
     // ── Root widget ──
     const widget = document.createElement("div");
     widget.id = WIDGET_ID;
-    widget.setAttribute("data-score", composite);
+    widget.setAttribute("data-score", pct);
     widget.setAttribute("data-max", maxScore);
+    // CSS can't range-match attribute values, so the bar-colour band mirrors
+    // the scoreToVerdict thresholds (≤20/≤55/≤90/>90); data-score stays the
+    // raw percentage. Absolute composite was wrong here — maxScore varies.
+    widget.setAttribute("data-band", pct <= 20 ? 0 : pct <= 55 ? 1 : pct <= 90 ? 2 : 3);
 
     // ── Header ──
     const header = make("div", "ytev-header");
@@ -365,7 +386,7 @@
 
   function injectWidget(widget) {
     for (const selector of activeSelectors.inject_before) {
-      const el = document.querySelector(selector);
+      const el = safeQuery(selector);
       if (el) {
         el.parentNode.insertBefore(widget, el);
         return true;
@@ -525,7 +546,7 @@
     commentObserverTimer = null;
     teardownCommentObserver();
 
-    const commentsEl = document.querySelector("#comments");
+    const commentsEl = safeQuery("#comments");
     if (!commentsEl) return;
 
     commentIntersectionObs = new IntersectionObserver((entries) => {
@@ -536,8 +557,8 @@
       // Comments are now in view — watch the count element for the
       // lazy-loaded number to appear. Prefer #count; fall back to the
       // header it lives in since the count element may not exist yet.
-      const target = document.querySelector("#comments #count") ||
-        document.querySelector("ytd-comments-header-renderer");
+      const target = safeQuery("#comments #count") ||
+        safeQuery("ytd-comments-header-renderer");
       if (!target) return;
 
       commentObserver = new MutationObserver(() => {
@@ -611,12 +632,12 @@
     } else if (document.readyState === "interactive") {
       window.addEventListener("load", () => setTimeout(runOnce, 500));
     } else {
-      const titleEl = document.querySelector("h1.ytd-watch-metadata, ytd-watch-metadata h1");
+      const titleEl = safeQuery("h1.ytd-watch-metadata, ytd-watch-metadata h1");
       if (titleEl && titleEl.textContent.trim()) {
         setTimeout(runOnce, 300);
       } else {
         const readyObserver = new MutationObserver(() => {
-          const title = document.querySelector("h1.ytd-watch-metadata, ytd-watch-metadata h1");
+          const title = safeQuery("h1.ytd-watch-metadata, ytd-watch-metadata h1");
           if (title && title.textContent.trim()) {
             readyObserver.disconnect();
             setTimeout(runOnce, 300);

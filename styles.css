@@ -96,17 +96,16 @@
   transition: width 0.4s ease;
 }
 
-/* Colour-code by score via data attribute */
-#ytev-widget[data-score="0"] .ytev-bar-fill,
-#ytev-widget[data-score="1"] .ytev-bar-fill { background: #ff4444; }
+/* Colour-code the bar by percentage band — mirrors verdict.js scoreToVerdict
+   (≤20 red, ≤55 orange, ≤90 green, >90 fire). data-score carries the raw
+   percentage; CSS can't range-match it, so content.js sets data-band. */
+#ytev-widget[data-band="0"] .ytev-bar-fill { background: #ff4444; }
 
-#ytev-widget[data-score="2"] .ytev-bar-fill,
-#ytev-widget[data-score="3"] .ytev-bar-fill { background: #ff8c00; }
+#ytev-widget[data-band="1"] .ytev-bar-fill { background: #ff8c00; }
 
-#ytev-widget[data-score="4"] .ytev-bar-fill,
-#ytev-widget[data-score="5"] .ytev-bar-fill { background: #4caf50; }
+#ytev-widget[data-band="2"] .ytev-bar-fill { background: linear-gradient(90deg, #4caf50, #8bc34a); }
 
-#ytev-widget[data-score="6"] .ytev-bar-fill { background: linear-gradient(90deg, #ff6b35, #ff4500); }
+#ytev-widget[data-band="3"] .ytev-bar-fill { background: linear-gradient(90deg, #ff6b35, #ff4500); }
 
 .ytev-score-text {
   font-size: 11px;
