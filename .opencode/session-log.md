@@ -319,6 +319,48 @@ Final session before shipping 1.2.0. Four items across three committed files (co
 
 ---
 
+## Session 2026-08-15 — Phase 13: verdict.js latent-bug fixes
+
+### Context
+Three latent bugs flagged in Phase 11 (out of scope there), fixed in a dedicated session per guardrail 4. Scout pass + explicit go-ahead received. Files touched: verdict.js + test/verdict.test.js. No manifest/version/API changes.
+
+### Decisions
+1. **compute() views guard** (verdict.js:95-99): `!views || views === 0` → `!Number.isFinite(views) || views <= 0`. The old guard let negatives and ±Infinity through — negative views produced a bogus verdict (negative likeRate → score 0 → e.g. View Botted) instead of the error path; Infinity picked tier 1 and scored 0 on every rate. New guard is total: 0/null/undefined/NaN/±Infinity/negatives all return the error path.
+2. **scoreToVerdict() degenerate fallback** (verdict.js:81-89): `scoreToVerdict(0, 0)` → `pct = NaN` → every comparison false → default "Legit on Fire". Same defect class: `(NaN, 100)` and `(5, 0)` (x/0 → Infinity) also fell through to Fire. Fix hoists the View Botted literal to a `viewBotted` const and returns it when `!Number.isFinite(score) || !Number.isFinite(maxScore) || maxScore <= 0`. Conservative worst-case default; keeps the verdict-object return shape (compute() reads `.label`). Note: guarding `score` (not just maxScore) is a deliberate one-line scope expansion folded in — leaving NaN score would be a half-fix of the same defect, flagged to Denali in the scout report and approved.
+3. **scoreSentiment() input guard** (verdict.js:66-74): extended the existing null-dislikes check with `!Number.isFinite(likes) || !Number.isFinite(dislikes) || likes < 0 || dislikes < 0 → null`. Previously `(100, -5)` → total 95, ratio 1.05 → score 2; `(NaN, 10)` → ratio NaN → score 0. Returning null excludes the signal, consistent with the function's "unavailable data" contract. (ryd.js:53-60 already guards the RYD source — this is direct-call/defense-in-depth.)
+
+### Reachability analysis (scout)
+None of the three bugs is reachable from the UI path today: all scraped numbers flow through parseYTNumber (regex `[\d.]+`, content.js:123-134, cannot yield negatives) and RYD data is validated non-negative in ryd.js. They are direct-call latent defects; the fixes are defensive hardening of the public scoring API, verified against the direct-call surface only. API repo confirmed to have no scoring copy (src/index.js is a pure report/aggregate store).
+
+### Assumptions baked in
+- Worst-case (View Botted) is the right fallback for un-bandable inputs — matches the philosophy of the compute() error path.
+- Negative score with valid maxScore already lands in View Botted via `pct <= 0.20`, so no extra negative-score branch is needed.
+- The existing boundary tests are unaffected: scoreSentiment(0,0) still → null (0 is finite, non-negative → total 0 → null); (100,0) still → 2.
+
+### What was ruled out
+- Guarding likes/comments at the compute() level — not flagged by the brief; likes flow through the same non-negative scraping path, and negative comments only ever score 0 (no corruption).
+- Throwing from scoreToVerdict — would break the shape contract compute() relies on.
+- Touching the API repo / manifest — scoring is extension-only, no wire-format change.
+
+### Files changed
+- `verdict.js` (committed) — three guards
+- `test/verdict.test.js` (committed) — 3 regression tests (23 total, all pass)
+- `ROADMAP.md` (gitignored, local) — Phase 13 entry
+
+### Last file / line
+- `test/verdict.test.js:149-159` — latent-bug regression section.
+
+### Sitrep for next session
+- **Manual verify (required before release):** build via build.ps1 and check widget bar colour on null-signal videos (RYD down → maxScore 4; comments disabled → maxScore 2) — bar must match the verdict colour band.
+- Worker `/health` → 1.2.0 bump (cross-repo) — update the health test assertion alongside.
+- Remaining queued: AMO re-submit as MV3; welcome close-vs-redirect eyeball in FF + Chrome.
+- Backlog items untouched: Phase 2/3/4/5 roadmap items, telemetry rate limiting, deployment + `wrangler secret delete API_KEY`.
+
+### Commit
+- 
+
+---
+
 ## Session 2026-08-15 — Phase 10: Repo Hygiene
 
 ### Context

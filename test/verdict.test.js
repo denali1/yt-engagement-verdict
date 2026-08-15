@@ -146,6 +146,32 @@ test("scoreSentiment: boundary ratios", () => {
   assert.equal(scoreSentiment(0, 5), 0);   // ratio 0
 });
 
+// ── latent-bug regression tests (Phase 13) ────────────────────────────────────
+
+test("compute: negative or infinite views return the error path", () => {
+  for (const views of [-1, -1000000, Infinity, -Infinity]) {
+    const result = compute(views, 100, 10, 20);
+    assert.equal(result.verdict, null);
+    assert.equal(result.error, "No view data available.");
+  }
+});
+
+test("scoreToVerdict: degenerate inputs fall back to View Botted, not Legit on Fire", () => {
+  assert.equal(scoreToVerdict(0, 0).label, "View Botted");        // 0/0 → NaN
+  assert.equal(scoreToVerdict(5, 0).label, "View Botted");        // x/0 → Infinity
+  assert.equal(scoreToVerdict(NaN, 100).label, "View Botted");    // NaN score
+  assert.equal(scoreToVerdict(Infinity, 100).label, "View Botted");
+  assert.equal(scoreToVerdict(100, NaN).label, "View Botted");    // NaN maxScore
+});
+
+test("scoreSentiment: negative or non-finite inputs return null (signal excluded)", () => {
+  assert.equal(scoreSentiment(100, -5), null);   // would otherwise → 1.05 ratio → 2
+  assert.equal(scoreSentiment(-100, 5), null);
+  assert.equal(scoreSentiment(NaN, 10), null);   // NaN ratio otherwise → 0
+  assert.equal(scoreSentiment(10, NaN), null);
+  assert.equal(scoreSentiment(Infinity, 10), null);
+});
+
 // ── scoreRate(): at, above, and below low and high ────────────────────────────
 
 test("scoreRate: boundary conditions against low/high", () => {

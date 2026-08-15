@@ -65,6 +65,12 @@ const YTVerdict = (() => {
    */
   function scoreSentiment(likes, dislikes) {
     if (dislikes === null || dislikes === undefined) return null;
+    // Negative or non-finite inputs would corrupt the ratio (e.g. 100 likes /
+    // -5 dislikes → 1.05 → score 2, or NaN → 0). Treat them like missing
+    // data and exclude the signal.
+    if (!Number.isFinite(likes) || !Number.isFinite(dislikes) || likes < 0 || dislikes < 0) {
+      return null;
+    }
     const total = likes + dislikes;
     if (total === 0) return null;
     const ratio = likes / total;
@@ -77,8 +83,15 @@ const YTVerdict = (() => {
    * Maps a composite score to a verdict object.
    */
   function scoreToVerdict(score, maxScore) {
+    const viewBotted = { emoji: "🤖", label: "View Botted", color: "#ff4444", description: "Engagement is far below what's expected for this view count. Likely artificially inflated." };
+    // Degenerate inputs — NaN (0/0), non-finite, or a non-positive maxScore —
+    // would make pct NaN/Infinity and fall through every comparison to the
+    // default "Legit on Fire" branch. Default to the worst-case verdict instead.
+    if (!Number.isFinite(score) || !Number.isFinite(maxScore) || maxScore <= 0) {
+      return viewBotted;
+    }
     const pct = score / maxScore;
-    if (pct <= 0.20) return { emoji: "🤖", label: "View Botted",    color: "#ff4444", description: "Engagement is far below what's expected for this view count. Likely artificially inflated." };
+    if (pct <= 0.20) return viewBotted;
     if (pct <= 0.55) return { emoji: "💩", label: "Hot Garbage",    color: "#ff8c00", description: "Views exist, but the audience isn't engaging. Low quality or heavily disliked." };
     if (pct <= 0.90) return { emoji: "👍", label: "Solid Video",    color: "#4caf50", description: "Engagement is healthy and consistent with genuine viewership." };
     return               { emoji: "🔥", label: "Legit on Fire",  color: "#ff6b35", description: "Exceptional engagement across all signals. This one is genuinely popping off." };
@@ -93,7 +106,9 @@ const YTVerdict = (() => {
    * @returns {object} Full verdict result
    */
   function compute(views, likes, dislikes, comments) {
-    if (!views || views === 0) {
+    // Guard covers 0/null/undefined/NaN plus negatives and ±Infinity, which the
+    // old `!views || views === 0` let through to produce a bogus verdict.
+    if (!Number.isFinite(views) || views <= 0) {
       return { verdict: null, error: "No view data available." };
     }
 
