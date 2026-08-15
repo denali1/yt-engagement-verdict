@@ -426,7 +426,7 @@ Chrome Web Store limits the manifest `description` to 132 characters; the v1.2.1
 - Nothing new; carries the Phase 14 sitrep forward (manual FF/Chrome reload verify, API `/health` 1.2.1 drift decision, AMO re-submit).
 
 ### Commit
-- 
+- 8304902
 
 ---
 
