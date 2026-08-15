@@ -497,6 +497,8 @@
 
   function onNavigate() {
     currentVideoId = null;
+    lastResult = null;
+    document.getElementById(WIDGET_ID)?.remove();
     setTimeout(run, 800);
   }
 
