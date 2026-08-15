@@ -361,6 +361,49 @@ None of the three bugs is reachable from the UI path today: all scraped numbers 
 
 ---
 
+## Session 2026-08-15 — Phase 14: MV3 background fallback for Firefox (v1.2.1)
+
+### Context
+Local testing of the 1.2.0 MV3 build in Firefox 154 beta rejected the extension at install with: `background.service_worker is currently disabled. Add background.scripts.` Investigation: `extensions.backgroundServiceWorker.enabled` is locked to `false` in the Firefox 154 beta channel — users cannot override it, so MV3 service workers are not enabled by default there. The Phase 8 MV3 unification left the extension broken in any Firefox build where the flag is off. Fix scope: manifest.json only (one key added + version bump). No scout pass required (two-line change, one file), per the brief.
+
+### Decisions
+1. **Both background keys** (manifest.json:23-26): `service_worker` + `scripts: ["background.js"]`. This is the MDN-recommended cross-browser pattern ("specify both `scripts` and `service_worker` … browsers that support SWs use `service_worker`, while browsers that use event pages use `scripts`"). When the flag is off (or SWs unsupported), Firefox falls back to `scripts`; when Firefox eventually enables SWs by default, `service_worker` takes precedence. Forward-compatible, functional today.
+2. **Same file both paths** — `background.js` serves as both the service worker and the event page, so no background.js change is required (it uses `browser.*`, which works in both contexts).
+3. **No `preferred_environment`** — MDN: not needed for the fallback; only relevant when you want Safari/preference control. Chrome only supports service workers and ignores it; Firefox runs event pages without it.
+4. **Version 1.2.0 → 1.2.1** (manifest.json:4) — patch bump for a manifest-only fix.
+
+### Verified before committing
+- Cross-browser behavior researched and confirmed:
+  - **Firefox 121+**: background page/scripts starts as expected regardless of `service_worker` presence (the pre-121 bug 1860304 only affected flag-off + both-keys, and our `strict_min_version` is 140.0, safely past it). When the flag is off, `scripts` is used.
+  - **Chrome 121+**: `background.scripts` in an MV3 manifest is ignored with only a non-fatal warning; `service_worker` is used. Our Chrome ZIP (same unified tree) remains valid.
+  - **Firefox store validation**: when both keys are present, `service_worker` gets at most a warning (addons-linter), not an error.
+- `node -e require('./manifest.json')` — parses; version 1.2.1; background block correct.
+- `npm test` — 23/23 pass (manifest change doesn't touch verdict logic).
+
+### What was ruled out
+- Two manifests (FF/Chrome split) — Phase 8 deliberately unified the tree; the both-keys pattern keeps one manifest and both stores.
+- `preferred_environment` — unnecessary for the flag-off fallback.
+- Touching background.js — same file serves both contexts; no change needed.
+- Bumping the API repo `/health` to 1.2.1 — out of scope (extension-only session); flagged in sitrep below.
+
+### Files changed
+- `manifest.json` (committed) — background fallback + version 1.2.1
+- `ROADMAP.md` (gitignored, local) — Phase 14 entry
+
+### Last file / line
+- `manifest.json:23-26` — background object with `service_worker` + `scripts`.
+
+### Sitrep for next session
+- **Manual verify (user, required before release):** reload in Firefox `about:debugging` — confirm the "background.service_worker is currently disabled" error is gone and a YouTube video scores. Also re-install the Chrome ZIP (build via build.ps1) to confirm the ignored `scripts` key causes no load issue there.
+- **API drift:** Worker `/health` now reports 1.2.0 while the extension is 1.2.1 — decide whether to align (`/health` is a version marker, not a contract; the extension never reads it). If aligning, it's a one-line cross-repo bump + test assertion update.
+- **Manual verify backlog:** bar colour on null-signal videos (RYD down → maxScore 4; comments disabled → maxScore 2); welcome close-vs-redirect flow.
+- Queued: AMO re-submit as MV3; deploy + `wrangler secret delete API_KEY`; remaining roadmap backlog (Phases 2/3/4/5, telemetry rate limiting).
+
+### Commit
+- 
+
+---
+
 ## Session 2026-08-15 — Phase 10: Repo Hygiene
 
 ### Context
