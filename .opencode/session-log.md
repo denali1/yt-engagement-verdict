@@ -218,5 +218,5 @@ Three performance items in `content.js` only: full-page `querySelectorAll` fallb
 - Worker `/health` still reports 1.1.6 (separate repo, pending deploy).
 
 ### Commit
-- [hash]
+- aa54931
 
