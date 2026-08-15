@@ -58,6 +58,8 @@ Expected engagement rates are scaled logarithmically by view count:
 | 1M – 10M | 0.2% – 1.5% | 0.05% – 0.40% |
 | 10M+ | 0.1% – 0.8% | 0.02% – 0.20% |
 
+These specific values are informed heuristics — the cited papers established the methodology and signal hierarchy, not the exact numbers.
+
 ### Composite score → verdict
 
 | Score (% of max) | Verdict |

@@ -76,7 +76,7 @@ All installed copies pick up the fix within 24 hours automatically
 
 ### Scoring threshold calibration
 
-The engagement rate ranges in `verdict.js` (`VIEW_TIERS`) are based on published industry benchmarks. If you have access to a dataset of verified authentic and verified botted videos and can propose better-calibrated thresholds with evidence, that's a meaningful contribution. Open an issue first to discuss methodology before submitting a PR.
+The engagement rate ranges in `verdict.js` (`VIEW_TIERS`) are informed heuristics — the papers cited in `verdict.js` established the methodology and signal hierarchy, not the exact numbers. If you have access to a dataset of verified authentic and verified botted videos and can propose better-calibrated thresholds with evidence, that's a meaningful contribution. Open an issue first to discuss methodology before submitting a PR.
 
 ### Chrome / Chromium port
 

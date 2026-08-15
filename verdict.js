@@ -140,6 +140,15 @@ const YTVerdict = (() => {
     };
   }
 
-  return { compute };
+  // Internal scoring functions are exposed alongside compute so the Node test
+  // runner can unit-test threshold boundaries directly (node:test). They are
+  // inert additions to the browser-visible YTVerdict global.
+  return { compute, scoreToVerdict, scoreSentiment, scoreRate };
 
 })();
+
+// Node test harness — `module` is undefined in content scripts, so this guard
+// is inert in the browser and only enables require("../verdict.js") in tests.
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = YTVerdict;
+}

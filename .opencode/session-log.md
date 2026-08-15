@@ -222,6 +222,57 @@ Three performance items in `content.js` only: full-page `querySelectorAll` fallb
 
 ---
 
+## Session 2026-08-15 — Phase 11: Testing baseline (brief called it "Phase 6" — number collision with ROADMAP Phase 6 Telemetry auth; recorded as Phase 11)
+
+### Context
+Established the first test suites for both repos: unit tests for `verdict.js`, an npm test script, and a rewrite of the stale scaffolded Worker test suite. No production logic changed (testing baseline only).
+
+### Decisions
+1. **Runner: Node's built-in `node:test`** — zero deps, no transpile, no bundler (Node 24.18). Script: `node --test "test/**/*.test.js"` — the naive `node --test test/` directory arg failed (`MODULE_NOT_FOUND` on the dir); the glob form works.
+2. **SCOPE EXCEPTION (guardrail #4, user-approved): `verdict.js` export mechanism.** Option A implemented — guarded `module.exports = YTVerdict` at the bottom (`typeof module !== "undefined"` guard; inert in content scripts). Additionally, the IIFE `return { compute }` was extended to `return { compute, scoreToVerdict, scoreSentiment, scoreRate }`. This second part was required, not cosmetic: the brief demands direct boundary tests of these three functions, and they are closure-private — the exact 0.20/0.55/0.90 percentages are unreachable through `compute()` alone (its maxScore is always 2/4/6). The extra keys are inert on the browser-visible `YTVerdict` global — verified `content.js` only calls `YTVerdict.compute`.
+3. **Extension `package.json` stays gitignored.** The `test` script lives only locally; the committed artifacts are `test/verdict.test.js` + the `verdict.js` guard. Tradeoff accepted and noted: a fresh clone gets the test file but no `package.json`, so `npm test` needs the local file. Flagged if CI is ever wanted.
+4. **20 verdict tests** cover the brief's full matrix: compute() all four verdicts (6/6, 5/6, 3/6, 1/6, 0/6), null-comments exclusion (maxScore 4, incl. the 1/4 = 0.25 → Hot Garbage boundary), zero-comments scored-not-excluded, null-dislikes exclusion, both-null (maxScore 2), zero-views error path (0/null/undefined/NaN), scoreToVerdict exact boundaries via maxScore=100 (20/21, 55/56, 90/91, 100), scoreSentiment (null/undefined, zero total, 0.85/0.40/0.39 boundaries), scoreRate at/above/below low & high, and **all five** tier boundaries (brief said four — verdict.js has always had five; the last tier is `{ max: Infinity }`).
+5. **Worker tests: neon driver mocked** via `vi.hoisted` + `vi.mock("@neondatabase/serverless")`. The mock `neon()` returns a tagged-template `sql` fn that branches on the (trimmed) query text — SELECT returns canned rows (known video → row, unknown → []), writes resolve. No test database needed. First run exposed a mock bug: template literals begin with a newline, so `startsWith("SELECT")` missed until `.trim()`. 11 tests = the brief's 6 + 5 bonus that lock actual behavior (invalid JSON 400, missing fields 400, missing videoId 400, unknown route 404, OPTIONS preflight 204).
+6. **`/health` version: brief expected 1.0.0 — actual is 1.1.6** (aligned in API commit `783d939`). Test asserts the actual. The 1.2.0 bump remains a pending cross-repo item; when it lands, the health assertion must be updated.
+7. **Docs:** no "four tiers" reference existed anywhere (README's "The four verdicts" counts verdicts, correctly). Added the one-sentence heuristics caveat to README (after the tier table) and to CONTRIBUTING's scoring-calibration section: the cited papers established methodology and signal hierarchy, not the exact numbers.
+
+### Latent bugs flagged — NOT fixed (testing baseline only; dedicated fix session required)
+1. `compute()` guard `!views || views === 0` catches 0/null/undefined/NaN but **negative views pass through** and produce a verdict instead of the error path.
+2. `scoreToVerdict(0, 0)` → `pct = NaN` → all comparisons false → returns "Legit on Fire". Unreachable via `compute()` (min maxScore is 2) but reachable by direct call.
+3. `scoreSentiment()` unguarded against **negative dislikes** (could produce ratio > 1 or NaN).
+
+### Assumptions baked in
+- `node:test` glob discovery works on Node 24 (verified — 20/20 pass).
+- Mocking the Neon driver is the right approach for unit-style Worker tests; a real test DB is unnecessary for the current route surface.
+- Exposing extra props on `YTVerdict` cannot break `content.js` (verified call sites).
+
+### What was ruled out
+- Vitest for the extension (heavyweight, requires install — node:test is built in).
+- A real test database for the Worker suite (brittle, needs network + Neon branch).
+- vm-based loader for verdict.js (Option B — uglier test, zero production change, rejected in favor of the approved guarded export).
+- Fixing the three latent bugs (explicitly out of scope this session).
+- Testing the `scheduled()` cron handler (not in the brief).
+
+### Files changed
+- Extension (committed): `verdict.js` (scope-exception export), `test/verdict.test.js` (new), `README.md` + `CONTRIBUTING.md` (heuristics caveat)
+- Extension (gitignored, NOT committed): `package.json` (test script)
+- Extension (gitignored, local only): `ROADMAP.md` (Phase 11 entry)
+- API repo (committed): `test/index.spec.js` (rewritten)
+
+### Last file / line
+- `yt-engagement-verdict-api/test/index.spec.js:49-55` — `sqlMock` tagged-template implementation (trim + SELECT branch).
+
+### Sitrep for next session
+- Latent-bug fix session (three items above) — highest priority.
+- Worker `/health` → 1.2.0 bump (cross-repo) — update the health test assertion alongside.
+- Remaining eval items: bar-color vs verdict threshold mismatch, remote-selector try/catch robustness.
+- Manual verify: welcome close-vs-redirect flow in FF + Chrome (Phase 10 fix).
+
+### Commit
+- 
+
+---
+
 ## Session 2026-08-15 — Phase 10: Repo Hygiene
 
 ### Context
