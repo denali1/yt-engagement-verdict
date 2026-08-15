@@ -156,11 +156,6 @@
         if (val !== null) return val;
       }
     }
-    for (const span of document.querySelectorAll("span")) {
-      if (/\d[\d,.]*(K|M|B)?\s+views/i.test(span.textContent)) {
-        return parseYTNumber(span.textContent);
-      }
-    }
     return null;
   }
 
@@ -205,11 +200,6 @@
       if (el) {
         const val = parseYTNumber(el.textContent);
         if (val !== null) return val;
-      }
-    }
-    for (const el of document.querySelectorAll("span, yt-formatted-string")) {
-      if (/[\d,.]+[KMBkmb]?\s+comments/i.test(el.textContent)) {
-        return parseYTNumber(el.textContent);
       }
     }
     return null;
@@ -489,35 +479,41 @@
   window.addEventListener("popstate", onNavigate);
 
   // URL polling fallback — checks every 500ms if the URL has changed.
-  // Lightweight since it's just a string comparison.
+  // Lightweight since it's just a string comparison. Does nothing on
+  // non-watch pages.
   let lastUrl = location.href;
   setInterval(() => {
     const currentUrl = location.href;
-    if (currentUrl !== lastUrl) {
-      lastUrl = currentUrl;
-      if (currentUrl.includes("youtube.com/watch")) {
-        onNavigate();
-      } else {
-        currentVideoId = null;
-        document.getElementById(WIDGET_ID)?.remove();
-      }
+    if (currentUrl === lastUrl) return;
+    lastUrl = currentUrl;
+    if (!currentUrl.includes("youtube.com/watch")) {
+      // Left a video page — drop state so a return to watch re-runs cleanly
+      currentVideoId = null;
+      document.getElementById(WIDGET_ID)?.remove();
+      return;
     }
+    onNavigate();
   }, 500);
 
   // ─── Comment Observer ─────────────────────────────────────────────────────
   // Uses IntersectionObserver — fires when the user naturally scrolls to the
   // comments section. No forced scrolling, no disruption to video playback.
-  // Once in view, polls for the lazy-loaded comment count and updates the
-  // widget when it appears.
+  // Once in view, a narrow MutationObserver on the count element waits for
+  // the lazy-loaded count and updates the widget when it appears.
 
   let commentObserver = null;
   let commentObserverTimer = null;
+  let commentObserverTimeout = null;
   let commentIntersectionObs = null;
 
   function teardownCommentObserver() {
     if (commentObserver) {
-      clearInterval(commentObserver);
+      commentObserver.disconnect();
       commentObserver = null;
+    }
+    if (commentObserverTimeout) {
+      clearTimeout(commentObserverTimeout);
+      commentObserverTimeout = null;
     }
     if (commentIntersectionObs) {
       commentIntersectionObs.disconnect();
@@ -537,22 +533,22 @@
       commentIntersectionObs.disconnect();
       commentIntersectionObs = null;
 
-      // Comments are now in view — poll for the count to populate
-      let attempts = 0;
-      const MAX_ATTEMPTS = 20;
+      // Comments are now in view — watch the count element for the
+      // lazy-loaded number to appear. Prefer #count; fall back to the
+      // header it lives in since the count element may not exist yet.
+      const target = document.querySelector("#comments #count") ||
+        document.querySelector("ytd-comments-header-renderer");
+      if (!target) return;
 
-      commentObserver = setInterval(() => {
+      commentObserver = new MutationObserver(() => {
         if (RYD.getVideoId() !== currentVideoId) {
-          clearInterval(commentObserver);
-          commentObserver = null;
+          teardownCommentObserver();
           return;
         }
-        attempts++;
-        const comments = scrapeComments();
 
+        const comments = scrapeComments();
         if (comments && comments > 0 && lastResult) {
-          clearInterval(commentObserver);
-          commentObserver = null;
+          teardownCommentObserver();
 
           const widget = document.getElementById(WIDGET_ID);
           const { inputs } = lastResult;
@@ -571,14 +567,14 @@
               }
             }
           }
-          return;
         }
+      });
 
-        if (attempts >= MAX_ATTEMPTS) {
-          clearInterval(commentObserver);
-          commentObserver = null;
-        }
-      }, 300);
+      // Structural changes only — the count node's subtree is all we need
+      commentObserver.observe(target, { childList: true, subtree: true });
+
+      // Bounded safety — disconnect if the count never arrives
+      commentObserverTimeout = setTimeout(teardownCommentObserver, 8000);
 
     }, { threshold: 0.1 });
 

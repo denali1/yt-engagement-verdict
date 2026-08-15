@@ -179,3 +179,44 @@ The extension shipped two divergent codebases: an MV2 Firefox build (root) and a
 ### Commit
 - bf35cff
 
+---
+
+## Session 2026-08-15 — Phase 3: Performance
+
+### Context
+Three performance items in `content.js` only: full-page `querySelectorAll` fallback scans in the scrapers, the comment-count observer strategy, and the URL poller. No other files touched.
+
+### Decisions
+1. **Removed both full-page fallback scans.** `scrapeViews()` dropped the `document.querySelectorAll("span")` regex scan; `scrapeComments()` dropped the `document.querySelectorAll("span, yt-formatted-string")` regex scan. Both now return `null` on selector failure and let the retry loop / observer handle the not-ready case. These scans were the worst offenders — they forced layout (`textContent` reads) across hundreds/thousands of nodes and fired every 500ms during the up-to-20s retry window (RETRY_LIMIT 40 × RETRY_MS 500) and every 300ms in the old comment poll. Selector coverage lives in `selectors.json` (remote-updatable, 4 view / 5 like / 4 comment selectors), which is the right place for new selectors.
+2. **Observer redesign.** Scout found the brief's MutationObserver description was stale — post-unification `startCommentObserver()` used IntersectionObserver + a `setInterval` poll, not a MutationObserver. Kept the IntersectionObserver scroll trigger on `#comments` (zero cost while off-screen), and replaced the 300ms × 20-tick interval with a **narrow MutationObserver**:
+   - Target prefers `#comments #count` at arm time, falls back to `ytd-comments-header-renderer` — the count element is exactly what lazy-loads, so it may not exist when the observer arms (explicitly implemented, not just noted).
+   - Options `{ childList: true, subtree: true }` — **no `characterData`** (structural changes only).
+   - On mutation: video-ID guard → `scrapeComments()` (now cheap post-fix 1) → recompute + re-render widget → teardown once a count is found.
+   - MAX_ATTEMPTS cap replaced by a bounded 8s safety `setTimeout` that tears down if the count never arrives.
+   - `teardownCommentObserver()` now disconnects the MutationObserver (was `clearInterval`) and clears the safety timeout. New module-level `commentObserverTimeout`.
+3. **URL poller.** Restructured to explicit early-return form: skip when URL unchanged; skip work on non-watch pages (kept the one-shot transition cleanup of `currentVideoId` + widget removal). Noted and kept running: the poller is the only mechanism for detecting pushState SPA navigation between videos, and it costs one string compare per tick when nothing changed — removing it after injection would break video-to-video nav.
+
+### Assumptions baked in
+- Inline fallback coverage was redundant with the selector list — removal is safe.
+- Without `characterData`, an in-place text mutation of the count (vs node replacement) would be missed; YouTube populates the count via structural updates — accepted per brief.
+- The 8s safety timeout bounds the observer; `onNavigate()` teardown also clears it.
+
+### What was ruled out
+- Keeping a timer poll alongside the MutationObserver — redundant.
+- Stopping the URL poller after widget injection — would break SPA video-to-video detection.
+- Touching anything outside `content.js` (per brief).
+
+### Files changed (all committed)
+- `content.js`
+
+### Last file / line
+- `content.js:539-541` — narrow MutationObserver target: `#comments #count` with `ytd-comments-header-renderer` fallback.
+
+### Sitrep for next session
+- Remaining eval items: bar-color vs verdict threshold mismatch, remote-selector try/catch robustness.
+- Manual verify: scroll-to-comments lazy-load in FF + Chrome, zero-comment videos, SPA nav between videos.
+- Worker `/health` still reports 1.1.6 (separate repo, pending deploy).
+
+### Commit
+- [hash]
+
