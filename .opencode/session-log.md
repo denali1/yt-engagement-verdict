@@ -315,7 +315,7 @@ Final session before shipping 1.2.0. Four items across three committed files (co
 - If telemetry correctness matters, consider un-ignoring reporter.js or mirroring the throttle in a committed file — currently local-only by design.
 
 ### Commit
-- 
+- a7e828f (reporter.js changes NOT committed — gitignored)
 
 ---
 
