@@ -432,7 +432,7 @@
     const likes    = scrapeLikes();
     const comments = scrapeComments();
 
-    if ((views === null || likes === null || likes === 0 || comments === null || comments === 0) && comments !== COMMENTS_DISABLED && retryCount < RETRY_LIMIT) {
+    if ((views === null || likes === null || likes === 0 || comments === null) && comments !== COMMENTS_DISABLED && retryCount < RETRY_LIMIT) {
       retryCount++;
       retryTimer = setTimeout(() => attempt(videoId), RETRY_MS);
       return;
@@ -449,12 +449,14 @@
 
     if (lastResult.error || !lastResult.verdict) return;
 
-    // Report anonymously if user has opted in
-    Reporter.report(videoId, lastResult).catch(() => {});
+    // Report anonymously if user has opted in and reporter.js loaded
+    if (typeof Reporter !== "undefined") {
+      Reporter.report(videoId, lastResult).catch(() => {});
+    }
 
     // If comments came back 0 (not disabled), start watching for lazy-load
     if (!comments || comments === 0) {
-      setTimeout(startCommentObserver, 1000);
+      commentObserverTimer = setTimeout(startCommentObserver, 1000);
     }
 
     const widget = renderWidget(lastResult, activeSelectors.version);
@@ -498,6 +500,12 @@
   function onNavigate() {
     currentVideoId = null;
     lastResult = null;
+    clearTimeout(retryTimer);
+    retryTimer = null;
+    retryCount = 0;
+    clearTimeout(commentObserverTimer);
+    commentObserverTimer = null;
+    teardownCommentObserver();
     document.getElementById(WIDGET_ID)?.remove();
     setTimeout(run, 800);
   }
@@ -529,17 +537,24 @@
   // scraper and updates the widget if the count was previously 0 or null.
 
   let commentObserver = null;
+  let commentObserverTimer = null;
 
-  function startCommentObserver() {
+  function teardownCommentObserver() {
     if (commentObserver) {
       commentObserver.disconnect();
       commentObserver = null;
     }
+  }
+
+  function startCommentObserver() {
+    commentObserverTimer = null;
+    teardownCommentObserver();
 
     const target = document.querySelector("#comments, ytd-comments");
     if (!target) return;
 
     commentObserver = new MutationObserver(() => {
+      if (RYD.getVideoId() !== currentVideoId) return;
       const comments = scrapeComments();
       if (comments && comments > 0 && lastResult) {
         // Comments have loaded — recompute and update widget

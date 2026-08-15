@@ -41,3 +41,45 @@ Replaced the hardcoded static API key in `reporter.js` / `chrome/reporter.js` (w
 - Next candidates from the code eval: comment-count lifecycle between video changes (`content.js` retry/observer), injection TOCTOU race (`background.js`), full-page DOM-scan perf in the retry loop (`content.js`), bar-color vs verdict threshold mismatch.
 - Rate limiting per install ID is the designated future concern for telemetry.
 - Multi-tab `install_id` race logged above — revisit with rate limiting.
+
+---
+
+## Session 2026-08-15 — Phase 2: Correctness (Part 1) — Reporter guard + comment-count lifecycle
+
+### Context
+Two correctness items from the code review: (1) unconditional `Reporter.report()` calls crash the content script if reporter.js fails to load; (2) stale comment-count carry-over between video navigations.
+
+### Decisions
+1. **Reporter guard** — both call sites (`content.js:453`, `chrome/content.js:381`) wrapped in `typeof Reporter !== "undefined"`.
+2. **Observer teardown on every navigation** — new `teardownCommentObserver()` helper (FF: disconnect MutationObserver; Chrome: `clearInterval` + disconnect IntersectionObserver). Called from `onNavigate()` and at the top of `startCommentObserver()`.
+3. **New module-level `commentObserverTimer`** (distinct from `commentObserver`, per explicit instruction) tracks the pending `setTimeout` that arms the observer — cleared on navigation so a stale arm can't fire against the new DOM. Did NOT overload `commentObserver`.
+4. **Full retry reset in `onNavigate()`** — `retryTimer`/`retryCount` previously only reset in `run()`, which executes 800ms after navigation, leaving a window where a stale retry could fire `attempt(oldVideoId)` against transitional DOM.
+5. **Separated "genuinely 0 comments" from "not loaded yet"** — retry loop now retries only while `comments === null`; `comments === 0` proceeds immediately (no more 20s spin on zero-comment videos) and still arms the observer so a late-arriving real count corrects the verdict.
+6. **Video-ID guards in both observer callbacks** — bail unless `RYD.getVideoId() === currentVideoId`, preventing a stale observer from applying the previous video's count to the new video's result.
+7. **Chrome-specific:** the IntersectionObserver is now tracked at module level (`commentIntersectionObs`) so it can be disconnected on teardown — previously leaked per `startCommentObserver()` call.
+
+### Assumptions baked in
+- `RYD.getVideoId()` reads the current URL's `?v=` param — reliable identity check inside observer callbacks since the URL updates before `yt-navigate-finish` completes.
+- YouTube's `#comments` node can be reused across SPA navigations; teardown + ID guard covers both reused and recreated nodes.
+- The `yt-navigate-finish` dispatch from background.js (same isolated world) does reach `onNavigate()`; left unchanged.
+
+### What was ruled out
+- Unifying the two divergent content.js implementations (FF MutationObserver vs Chrome IntersectionObserver+interval) — architecture task, separate session.
+- Removing the background.js `yt-navigate-finish` dispatch — redundant when YouTube fires its own event (benign double `onNavigate`) but covers cold-load edge; kept.
+- Adding the `commentsPending` note to the Firefox version (Chrome-only feature) — feature, not this session's scope.
+
+### Files changed (all committed)
+- `content.js`
+- `chrome/content.js`
+
+### Last file / line
+- `chrome/content.js:488-525` — interval poller with video-ID guard.
+
+### Sitrep for next session
+- Remaining eval items: injection TOCTOU race (`background.js`), full-page DOM-scan perf in the retry loop, bar-color vs verdict threshold mismatch, remote-selector try/catch robustness.
+- Build via build.ps1 and manually verify FF + Chrome comment lazy-load behavior.
+- FF/Chrome divergence tracking: FF MutationObserver vs Chrome IntersectionObserver.
+
+### Commit
+- [hash]
+

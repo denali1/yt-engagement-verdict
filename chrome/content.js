@@ -360,7 +360,7 @@
     const likes    = scrapeLikes();
     const comments = scrapeComments();
 
-    if ((views === null || likes === null || likes === 0 || comments === null || comments === 0) && comments !== COMMENTS_DISABLED && retryCount < RETRY_LIMIT) {
+    if ((views === null || likes === null || likes === 0 || comments === null) && comments !== COMMENTS_DISABLED && retryCount < RETRY_LIMIT) {
       retryCount++;
       retryTimer = setTimeout(() => attempt(videoId), RETRY_MS);
       return;
@@ -378,10 +378,13 @@
 
     if (lastResult.error || !lastResult.verdict) return;
 
-    Reporter.report(videoId, lastResult).catch(() => {});
+    // Report anonymously if user has opted in and reporter.js loaded
+    if (typeof Reporter !== "undefined") {
+      Reporter.report(videoId, lastResult).catch(() => {});
+    }
 
     if (!comments || comments === 0) {
-      setTimeout(startCommentObserver, 2000);
+      commentObserverTimer = setTimeout(startCommentObserver, 2000);
     }
 
     const widget = renderWidget(lastResult, activeSelectors.version);
@@ -420,6 +423,12 @@
   function onNavigate() {
     currentVideoId = null;
     lastResult = null;
+    clearTimeout(retryTimer);
+    retryTimer = null;
+    retryCount = 0;
+    clearTimeout(commentObserverTimer);
+    commentObserverTimer = null;
+    teardownCommentObserver();
     document.getElementById(WIDGET_ID)?.remove();
     setTimeout(run, 800);
   }
@@ -444,27 +453,44 @@
   // ─── MutationObserver ─────────────────────────────────────────────────────
 
   let commentObserver = null;
+  let commentObserverTimer = null;
+  let commentIntersectionObs = null;
 
-  function startCommentObserver() {
+  function teardownCommentObserver() {
     if (commentObserver) {
       clearInterval(commentObserver);
       commentObserver = null;
     }
+    if (commentIntersectionObs) {
+      commentIntersectionObs.disconnect();
+      commentIntersectionObs = null;
+    }
+  }
+
+  function startCommentObserver() {
+    commentObserverTimer = null;
+    teardownCommentObserver();
 
     const commentsEl = document.querySelector("#comments");
     if (!commentsEl) return;
 
     // Use IntersectionObserver — fires when user naturally scrolls to comments
     // No forced scrolling, no disruption to video playback
-    const intersectionObs = new IntersectionObserver((entries) => {
+    commentIntersectionObs = new IntersectionObserver((entries) => {
       if (!entries[0].isIntersecting) return;
-      intersectionObs.disconnect();
+      commentIntersectionObs.disconnect();
+      commentIntersectionObs = null;
 
       // Comments are now in view — poll for the count to populate
       let attempts = 0;
       const MAX_ATTEMPTS = 20;
 
       commentObserver = setInterval(() => {
+        if (RYD.getVideoId() !== currentVideoId) {
+          clearInterval(commentObserver);
+          commentObserver = null;
+          return;
+        }
         attempts++;
         const comments = scrapeComments();
 
@@ -500,7 +526,7 @@
 
     }, { threshold: 0.1 });
 
-    intersectionObs.observe(commentsEl);
+    commentIntersectionObs.observe(commentsEl);
   }
 
   // ─── Init ─────────────────────────────────────────────────────────────────
