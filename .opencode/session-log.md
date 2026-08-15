@@ -400,7 +400,7 @@ Local testing of the 1.2.0 MV3 build in Firefox 154 beta rejected the extension 
 - Queued: AMO re-submit as MV3; deploy + `wrangler secret delete API_KEY`; remaining roadmap backlog (Phases 2/3/4/5, telemetry rate limiting).
 
 ### Commit
-- 
+- 0cfcbb3
 
 ---
 
