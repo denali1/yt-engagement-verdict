@@ -37,6 +37,7 @@
   "permissions": [
     "activeTab",
     "storage",
+    "tabs",
     "*://www.youtube.com/*",
     "*://returnyoutubedislikeapi.com/*",
     "*://raw.githubusercontent.com/*",
