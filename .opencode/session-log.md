@@ -123,3 +123,59 @@ Two correctness items from the code review: (1) unconditional `Reporter.report()
 ### Commit
 - c4282f3
 
+---
+
+## Session 2026-08-15 — MV3 Unification
+
+### Context
+The extension shipped two divergent codebases: an MV2 Firefox build (root) and an MV3 Chrome build (`chrome/`). This session unified both under a single MV3 tree at root; `chrome/` was eliminated entirely.
+
+### Decisions
+1. **Single source of truth at root.** Root `manifest.json` became MV3: `browser_action`→`action`, `background.scripts`+`persistent`→`background.service_worker`, `scripting` permission added, host patterns split into `host_permissions`, `web_accessible_resources` in object form (`matches: ["<all_urls>"]`). Kept root's `homepage_url`, `browser_specific_settings` (gecko id, `strict_min_version: 140.0`, `data_collection_permissions`), and description. Version bumped 1.1.6 → **1.2.0**.
+2. **background.js → `browser.scripting.*`.** MV2 `browser.tabs.executeScript(tabId, {code/file})` → `browser.scripting.executeScript({target: {tabId}, func/files})`, result access `results[0]` → `results[0]?.result`. Kept the Phase 2 Part 2 `injectingTabs` in-flight set and the chained `insertCSS`. `browser.scripting` landed in FF 101 — no gap against strict_min 140.0 (also MV3 `service_worker` needs FF 109+).
+3. **content.js merge (browser.* + Chrome's four improvements).** Took `chrome/content.js` as the base (it had the newer strategy) and converted `chrome.*` → `browser.*`:
+   - Extra comment selectors: `#comments ytd-comments-header-renderer span.count-text`, `ytd-comments-header-renderer #count`
+   - `commentsPending` flag + "Scroll down to load comment data" widget note
+   - IntersectionObserver + 300ms/20-attempt poll strategy replaces the FF MutationObserver-over-`#comments`-subtree (perf win, and the prior known perf concern is retired)
+   - Safer update path: preserves `commentsDisabled`/`commentsPending`/`isAiContent`, `injectWidget()` fallback when widget missing
+   - Kept the FF-side promise-style `browser.storage.local.remove(SELECTOR_CACHE_KEY)` in `FORCE_SELECTOR_REFRESH` (explicit user instruction — callback-style chrome version not carried over), 500ms URL poll (root's), 2000ms observer arm delay (chrome's pairing with IntersectionObserver).
+   - Tradeoff accepted (flagged in scout): FF's MutationObserver caught comment counts that load without scrolling (playlist mode); IntersectionObserver needs the comments section in view.
+4. **popup.js / popup.html / welcome.js / reporter.js** were functionally identical across trees — kept root versions verbatim, no changes needed. `reporter.js` stays gitignored.
+5. **Shared files** (`ryd.js`, `verdict.js`, `styles.css`, `selectors.json`, `welcome.html`, `icons/`) existed only at root (build.ps1 copied them into the chrome staging) — no divergence to reconcile.
+6. **build.ps1** rewritten as single-stage: one root file list → one staging dir → byte-identical `.xpi` and `.zip`. Gitignored (not committed).
+7. **`.gitignore`**: `chrome/reporter.js` entry removed. Note: `chrome/reporter.js` itself was untracked, so `git rm` left it on disk; deleted manually per the brief's explicit "chrome/ subdirectory eliminated entirely" instruction.
+8. Worker `/health` version still reports 1.1.6 (separate API repo) — flagged, NOT changed this session.
+
+### Assumptions baked in
+- `browser.scripting` + MV3 `service_worker` are available at strict_min_version 140.0.
+- `browser.*` promise API is used throughout (no callback styles) — FF MV3 supports it natively.
+- Chrome treats the unified package as a normal MV3 extension; `browser_specific_settings` is ignored by Chrome.
+- The two store packages are now byte-identical content (only file extension differs).
+
+### What was ruled out
+- Keeping the FF MutationObserver comment strategy alongside IntersectionObserver — unnecessary divergence; brief named IntersectionObserver as the strategy to merge.
+- Converting to `chrome.*` namespace — brief constraint: keep `browser.*`.
+- Bumping the API repo version to match 1.2.0 — cross-repo, own session.
+- README/CONTRIBUTING/PRIVACY churn — grep confirmed no `chrome/` references in docs.
+
+### Files changed
+- `manifest.json` (committed) — MV3, v1.2.0
+- `background.js` (committed) — `browser.scripting.*`
+- `content.js` (committed) — merged
+- `.gitignore` (committed) — chrome/reporter.js entry removed
+- `build.ps1` (committed — already tracked, so the gitignore entry is a no-op) — single-build
+- `ROADMAP.md` (gitignored) — Phase 8 entry
+- `chrome/` (7 files deleted, removal committed; `chrome/reporter.js` was untracked, deleted from disk)
+
+### Last file / line
+- `content.js` — merged file; comment observer block (`commentIntersectionObs`/interval poll) near the end.
+
+### Sitrep for next session
+- Deploy Worker, `wrangler secret delete API_KEY` (still pending from Phase 1), bump `/health` to 1.2.0.
+- Re-submit to AMO as MV3; install the built `.xpi`/`.zip` and manually verify both stores.
+- Remaining eval items: bar-color vs verdict threshold mismatch, remote-selector try/catch robustness.
+- Firefox `about:debugging` check that MV3 service_worker + `browser.scripting` work on FF 140.
+
+### Commit
+- [hash]
+

@@ -10,7 +10,6 @@ Thumbs.db
 # Local only
 ROADMAP.md
 reporter.js
-chrome/reporter.js
 build.ps1
 AGENTS.md
 

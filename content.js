@@ -26,7 +26,7 @@
   const WIDGET_ID        = "ytev-widget";
   const RETRY_LIMIT      = 40;
   const RETRY_MS         = 500;
-  const SELECTOR_TTL_MS  = 24 * 60 * 60 * 1000; // 24 hours
+  const SELECTOR_TTL_MS  = 24 * 60 * 60 * 1000;
   const SELECTOR_CACHE_KEY  = "ytev_selectors";
   const SELECTOR_FETCH_URL  =
     "https://raw.githubusercontent.com/Denali1/yt-engagement-verdict/master/selectors.json";
@@ -50,7 +50,9 @@
     ],
     comments: [
       "#comments #count .count-text",
-      "ytd-comments-header-renderer h2 span"
+      "ytd-comments-header-renderer h2 span",
+      "#comments ytd-comments-header-renderer span.count-text",
+      "ytd-comments-header-renderer #count"
     ],
     inject_before: [
       "#above-the-fold #bottom-row",
@@ -63,14 +65,8 @@
     ai_label_text: "Made with AI"
   };
 
-  // ─── Selector Loader ──────────────────────────────────────────────────────
-
   let activeSelectors = FALLBACK_SELECTORS;
 
-  /**
-   * Loads selectors from cache or remote, with fallback.
-   * Resolves to the selector set to use — always resolves, never rejects.
-   */
   async function loadSelectors() {
     try {
       // Check cache first
@@ -80,17 +76,12 @@
       if (cached && cached.selectors && cached.fetchedAt) {
         const age = Date.now() - cached.fetchedAt;
         if (age < SELECTOR_TTL_MS) {
-          // Cache is fresh — use it
           activeSelectors = cached.selectors;
-          console.debug(
-            `[YTEV] Using cached selectors v${cached.selectors.version} ` +
-            `(${Math.round(age / 60000)}m old)`
-          );
+          console.debug(`[YTEV] Using cached selectors v${cached.selectors.version} (${Math.round(age / 60000)}m old)`);
           return activeSelectors;
         }
       }
 
-      // Cache is stale or missing — fetch fresh copy
       console.debug("[YTEV] Fetching fresh selectors from GitHub...");
       const response = await fetch(SELECTOR_FETCH_URL, {
         cache: "no-cache",
@@ -112,12 +103,8 @@
         throw new Error("Remote selectors failed shape validation");
       }
 
-      // Cache it
       await browser.storage.local.set({
-        [SELECTOR_CACHE_KEY]: {
-          selectors: remote,
-          fetchedAt: Date.now()
-        }
+        [SELECTOR_CACHE_KEY]: { selectors: remote, fetchedAt: Date.now() }
       });
 
       activeSelectors = remote;
@@ -125,7 +112,6 @@
       return activeSelectors;
 
     } catch (err) {
-      // Any failure → fall back to baked-in selectors silently
       console.debug(`[YTEV] Selector fetch failed (${err.message}), using fallback`);
       activeSelectors = FALLBACK_SELECTORS;
       return activeSelectors;
@@ -134,10 +120,6 @@
 
   // ─── Utility ──────────────────────────────────────────────────────────────
 
-  /**
-   * Parses a YouTube-formatted number string into an integer.
-   * Handles: "1.2M views", "45,312 views", "823K likes", etc.
-   */
   function parseYTNumber(str) {
     if (!str) return null;
     const clean = str.replace(/,/g, "").trim();
@@ -174,7 +156,6 @@
         if (val !== null) return val;
       }
     }
-    // Universal text fallback — scan spans for "N views" pattern
     for (const span of document.querySelectorAll("span")) {
       if (/\d[\d,.]*(K|M|B)?\s+views/i.test(span.textContent)) {
         return parseYTNumber(span.textContent);
@@ -184,11 +165,9 @@
   }
 
   function scrapeLikes() {
-    // Primary selectors from active set
     for (const sel of activeSelectors.likes) {
       const el = document.querySelector(sel);
       if (!el) continue;
-
       // Try aria-label first (most reliable)
       // YouTube uses "like this video along with 8,331 other people"
       const label = el.getAttribute("aria-label") || "";
@@ -200,12 +179,8 @@
         if (val !== null && val > 0) return val;
         if (val === 0 && /like this video/i.test(label) && !/along with/i.test(label)) return 0;
       }
-
-      // Try text content
       const val = parseYTNumber(el.textContent);
       if (val !== null && val > 0) return val;
-
-      // Try sibling span inside toggle renderer
       const countEl = el.closest("ytd-toggle-button-renderer")
         ?.querySelector("span.yt-core-attributed-string");
       if (countEl) {
@@ -213,7 +188,6 @@
         if (v !== null && v > 0) return v;
       }
     }
-    // Return null so the retry loop keeps trying until aria-label is populated
     return null;
   }
 
@@ -226,7 +200,6 @@
     if (msg && /comments are turned off/i.test(msg.textContent)) {
       return COMMENTS_DISABLED;
     }
-
     for (const sel of activeSelectors.comments) {
       const el = document.querySelector(sel);
       if (el) {
@@ -234,7 +207,6 @@
         if (val !== null) return val;
       }
     }
-    // Universal text fallback
     for (const el of document.querySelectorAll("span, yt-formatted-string")) {
       if (/[\d,.]+[KMBkmb]?\s+comments/i.test(el.textContent)) {
         return parseYTNumber(el.textContent);
@@ -360,6 +332,13 @@
       details.appendChild(commentsNote);
     }
 
+    // Comments pending note
+    if (result.commentsPending) {
+      const pendingNote = make("div", "ytev-ryd-note ytev-ryd-missing");
+      pendingNote.textContent = "Scroll down to load comment data — score will update automatically";
+      details.appendChild(pendingNote);
+    }
+
     // RYD note
     const rydNote = make("div", hasSentiment ? "ytev-ryd-note" : "ytev-ryd-note ytev-ryd-missing");
     if (hasSentiment) {
@@ -415,15 +394,11 @@
   async function run() {
     const videoId = RYD.getVideoId();
     if (!videoId) return;
-
     if (videoId === currentVideoId && document.getElementById(WIDGET_ID)) return;
     currentVideoId = videoId;
-
     clearTimeout(retryTimer);
     retryCount = 0;
     document.getElementById(WIDGET_ID)?.remove();
-
-    // Selectors are already loaded by init() before run() is ever called
     await attempt(videoId);
   }
 
@@ -438,14 +413,15 @@
       return;
     }
 
-    const rydData  = await RYD.fetchDislikes(videoId);
-    const dislikes = rydData ? rydData.dislikes : null;
+    const rydData     = await RYD.fetchDislikes(videoId);
+    const dislikes    = rydData ? rydData.dislikes : null;
     const isAiContent = scrapeAiLabel();
 
     const commentsValue = comments === COMMENTS_DISABLED ? null : (comments ?? 0);
     lastResult = YTVerdict.compute(views ?? 0, likes ?? 0, dislikes, commentsValue);
     lastResult.commentsDisabled = comments === COMMENTS_DISABLED;
     lastResult.isAiContent = isAiContent;
+    lastResult.commentsPending = !comments || comments === 0;
 
     if (lastResult.error || !lastResult.verdict) return;
 
@@ -454,9 +430,8 @@
       Reporter.report(videoId, lastResult).catch(() => {});
     }
 
-    // If comments came back 0 (not disabled), start watching for lazy-load
     if (!comments || comments === 0) {
-      commentObserverTimer = setTimeout(startCommentObserver, 1000);
+      commentObserverTimer = setTimeout(startCommentObserver, 2000);
     }
 
     const widget = renderWidget(lastResult, activeSelectors.version);
@@ -520,29 +495,33 @@
     const currentUrl = location.href;
     if (currentUrl !== lastUrl) {
       lastUrl = currentUrl;
-      // Only trigger if we're on a video page
       if (currentUrl.includes("youtube.com/watch")) {
         onNavigate();
       } else {
-        // Left a video page — clean up the widget
         currentVideoId = null;
         document.getElementById(WIDGET_ID)?.remove();
       }
     }
   }, 500);
 
-  // ─── MutationObserver ─────────────────────────────────────────────────
-  // Watches for YouTube lazy-loading the comment count into the DOM.
-  // When it appears (e.g. after scrolling in playlist mode), re-runs the
-  // scraper and updates the widget if the count was previously 0 or null.
+  // ─── Comment Observer ─────────────────────────────────────────────────────
+  // Uses IntersectionObserver — fires when the user naturally scrolls to the
+  // comments section. No forced scrolling, no disruption to video playback.
+  // Once in view, polls for the lazy-loaded comment count and updates the
+  // widget when it appears.
 
   let commentObserver = null;
   let commentObserverTimer = null;
+  let commentIntersectionObs = null;
 
   function teardownCommentObserver() {
     if (commentObserver) {
-      commentObserver.disconnect();
+      clearInterval(commentObserver);
       commentObserver = null;
+    }
+    if (commentIntersectionObs) {
+      commentIntersectionObs.disconnect();
+      commentIntersectionObs = null;
     }
   }
 
@@ -550,36 +529,60 @@
     commentObserverTimer = null;
     teardownCommentObserver();
 
-    const target = document.querySelector("#comments, ytd-comments");
-    if (!target) return;
+    const commentsEl = document.querySelector("#comments");
+    if (!commentsEl) return;
 
-    commentObserver = new MutationObserver(() => {
-      if (RYD.getVideoId() !== currentVideoId) return;
-      const comments = scrapeComments();
-      if (comments && comments > 0 && lastResult) {
-        // Comments have loaded — recompute and update widget
-        const widget = document.getElementById(WIDGET_ID);
-        if (!widget) return;
+    commentIntersectionObs = new IntersectionObserver((entries) => {
+      if (!entries[0].isIntersecting) return;
+      commentIntersectionObs.disconnect();
+      commentIntersectionObs = null;
 
-        const { inputs } = lastResult;
-        if (inputs.comments === 0 || inputs.comments === null) {
-          console.debug(`[YTEV] MutationObserver caught comment count: ${comments}`);
-          lastResult = YTVerdict.compute(inputs.views, inputs.likes, inputs.dislikes, comments);
-          if (lastResult.verdict) {
-            const newWidget = renderWidget(lastResult, activeSelectors.version);
-            widget.parentNode.insertBefore(newWidget, widget);
-            widget.remove();
+      // Comments are now in view — poll for the count to populate
+      let attempts = 0;
+      const MAX_ATTEMPTS = 20;
+
+      commentObserver = setInterval(() => {
+        if (RYD.getVideoId() !== currentVideoId) {
+          clearInterval(commentObserver);
+          commentObserver = null;
+          return;
+        }
+        attempts++;
+        const comments = scrapeComments();
+
+        if (comments && comments > 0 && lastResult) {
+          clearInterval(commentObserver);
+          commentObserver = null;
+
+          const widget = document.getElementById(WIDGET_ID);
+          const { inputs } = lastResult;
+          if (inputs.comments === 0 || inputs.comments === null) {
+            lastResult = YTVerdict.compute(inputs.views, inputs.likes, inputs.dislikes, comments);
+            lastResult.commentsDisabled = false;
+            lastResult.commentsPending = false;
+            lastResult.isAiContent = lastResult.isAiContent || false;
+            if (lastResult.verdict) {
+              const newWidget = renderWidget(lastResult, activeSelectors.version);
+              if (widget && widget.parentNode) {
+                widget.parentNode.insertBefore(newWidget, widget);
+                widget.remove();
+              } else {
+                injectWidget(newWidget);
+              }
+            }
           }
+          return;
         }
 
-        // Stop observing once we have a count
-        commentObserver.disconnect();
-        commentObserver = null;
-      }
-    });
+        if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(commentObserver);
+          commentObserver = null;
+        }
+      }, 300);
 
-    commentObserver.observe(target, { childList: true, subtree: true, characterData: true });
-    console.debug("[YTEV] MutationObserver watching for comment count...");
+    }, { threshold: 0.1 });
+
+    commentIntersectionObs.observe(commentsEl);
   }
 
   // ─── Init ─────────────────────────────────────────────────────────────────
@@ -612,7 +615,6 @@
     } else if (document.readyState === "interactive") {
       window.addEventListener("load", () => setTimeout(runOnce, 500));
     } else {
-      // readyState === "complete" — page fully loaded
       const titleEl = document.querySelector("h1.ytd-watch-metadata, ytd-watch-metadata h1");
       if (titleEl && titleEl.textContent.trim()) {
         setTimeout(runOnce, 300);
