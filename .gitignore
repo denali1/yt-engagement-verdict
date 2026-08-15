@@ -11,6 +11,7 @@ Thumbs.db
 ROADMAP.md
 reporter.js
 chrome/reporter.js
+build.ps1
 
 # Build artifacts
 *.zip
