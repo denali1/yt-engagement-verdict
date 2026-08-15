@@ -573,30 +573,46 @@
   async function init() {
     await loadSelectors();
 
+    // Cold load strategy:
+    // 1. If DOM still loading, wait for DOMContentLoaded then run
+    // 2. If DOM ready, watch for YouTube's title element to confirm rendering
+    // 3. Also listen for window.load as a final fallback
+    // 4. Hard fallback at 4 seconds regardless
+
+    let hasRun = false;
+
+    function runOnce() {
+      if (hasRun) return;
+      hasRun = true;
+      run();
+    }
+
+    // window.load fires after everything including YouTube's JS
+    window.addEventListener("load", () => setTimeout(runOnce, 800));
+
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => setTimeout(run, 1500));
+      document.addEventListener("DOMContentLoaded", () => setTimeout(runOnce, 1500));
+    } else if (document.readyState === "interactive") {
+      window.addEventListener("load", () => setTimeout(runOnce, 500));
     } else {
-      // DOM is ready but YouTube may still be rendering
-      // Watch for the video title element as a readiness signal
+      // readyState === "complete" — page fully loaded
       const titleEl = document.querySelector("h1.ytd-watch-metadata, ytd-watch-metadata h1");
       if (titleEl && titleEl.textContent.trim()) {
-        // Title already rendered — run with a short delay
-        setTimeout(run, 500);
+        setTimeout(runOnce, 300);
       } else {
-        // Title not yet rendered — watch for it
         const readyObserver = new MutationObserver(() => {
           const title = document.querySelector("h1.ytd-watch-metadata, ytd-watch-metadata h1");
           if (title && title.textContent.trim()) {
             readyObserver.disconnect();
-            setTimeout(run, 500);
+            setTimeout(runOnce, 300);
           }
         });
         readyObserver.observe(document.body, { childList: true, subtree: true });
-        // Fallback — run after 3 seconds regardless
+        // Hard fallback
         setTimeout(() => {
           readyObserver.disconnect();
-          run();
-        }, 3000);
+          runOnce();
+        }, 4000);
       }
     }
   }

@@ -505,25 +505,38 @@
 
   async function init() {
     await loadSelectors();
+
+    let hasRun = false;
+
+    function runOnce() {
+      if (hasRun) return;
+      hasRun = true;
+      run();
+    }
+
+    window.addEventListener("load", () => setTimeout(runOnce, 800));
+
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => setTimeout(run, 1500));
+      document.addEventListener("DOMContentLoaded", () => setTimeout(runOnce, 1500));
+    } else if (document.readyState === "interactive") {
+      window.addEventListener("load", () => setTimeout(runOnce, 500));
     } else {
       const titleEl = document.querySelector("h1.ytd-watch-metadata, ytd-watch-metadata h1");
       if (titleEl && titleEl.textContent.trim()) {
-        setTimeout(run, 500);
+        setTimeout(runOnce, 300);
       } else {
         const readyObserver = new MutationObserver(() => {
           const title = document.querySelector("h1.ytd-watch-metadata, ytd-watch-metadata h1");
           if (title && title.textContent.trim()) {
             readyObserver.disconnect();
-            setTimeout(run, 500);
+            setTimeout(runOnce, 300);
           }
         });
         readyObserver.observe(document.body, { childList: true, subtree: true });
         setTimeout(() => {
           readyObserver.disconnect();
-          run();
-        }, 3000);
+          runOnce();
+        }, 4000);
       }
     }
   }
