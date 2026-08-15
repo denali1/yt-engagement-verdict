@@ -80,7 +80,11 @@ The engagement rate ranges in `verdict.js` (`VIEW_TIERS`) are based on published
 
 ### Chrome / Chromium port
 
-The extension uses `browser.*` (WebExtensions API). A `chrome.*` compatibility shim or a build step using `webextension-polyfill` would make this a cross-browser extension. This is a welcome contribution — open an issue first to coordinate.
+The extension was unified onto a single Manifest V3 tree (v1.2.0) that runs in both Firefox and Chrome/Chromium. The `browser.*` namespace is used throughout and is supported natively by both browsers — no polyfill or shim is needed. If you hit a Chrome-specific bug, open an issue with your Chrome version and a screenshot.
+
+### YouTube Shorts
+
+YouTube Shorts are intentionally unsupported in v1.x — Shorts use a different page layout and engagement patterns than standard videos (no comment section, swipe-driven view counting). If the widget doesn't appear on a Shorts URL, that's expected, not a broken selector.
 
 ### Reporting a broken selector
 

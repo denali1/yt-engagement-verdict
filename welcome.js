@@ -16,6 +16,15 @@ async function setOptIn(value) {
   }
 
   setTimeout(() => window.close(), 3000);
+
+  // window.close() only works on tabs this script opened. If the browser
+  // refused (tab opened directly), don't strand the user on a frozen page —
+  // bounce them to YouTube instead.
+  setTimeout(() => {
+    if (!window.closed) {
+      window.location.replace("https://www.youtube.com");
+    }
+  }, 4000);
 }
 
 document.getElementById("btn-yes").addEventListener("click", () => setOptIn(true));

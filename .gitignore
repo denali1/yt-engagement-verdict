@@ -19,4 +19,12 @@ AGENTS.md
 web-ext-artifacts/
 .env.local
 
-.env.local
+# Stray Node/package files (extension is vanilla JS — no runtime deps)
+package.json
+package-lock.json
+node_modules/
+
+# AI toolchain (local sessions)
+skills-lock.json
+.agents/
+.claude/

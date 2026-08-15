@@ -220,3 +220,47 @@ Three performance items in `content.js` only: full-page `querySelectorAll` fallb
 ### Commit
 - aa54931
 
+---
+
+## Session 2026-08-15 — Phase 10: Repo Hygiene
+
+### Context
+Housekeeping pass: dead `.gitignore` entries, a stray `package.json`/`node_modules` from API work polluting the tree, a hardcoded `build.ps1` with a no-op ignore entry, a `window.close()` with no fallback in `welcome.js`, and docs that needed a Shorts note plus a stale Chrome-port section fixed.
+
+### Decisions
+1. **`.gitignore`**: removed the duplicate `.env.local` (lines 20 & 22); added `package.json`, `package-lock.json`, `node_modules/`, `skills-lock.json`, `.agents/`, `.claude/`. Rationale for the package files: the extension is vanilla browser JS — zero `require`/`import`/`@neondatabase` usage anywhere (grep-verified); `@neondatabase/serverless` is the API repo's driver and is a stray here. `.agents/`, `.claude/`, `skills-lock.json` are local AI-toolchain files that showed as `??` every session — gitignored per explicit go-ahead (denali approved adding them).
+2. **`build.ps1` untracked** — `git rm --cached build.ps1`. The `.gitignore` entry for it was dead because the file was tracked; now the ignore is live and the file stays local. This also makes its future improvements invisible to the repo (by design — it's a local build script).
+3. **`build.ps1` hardened** — `$root` now `$PSScriptRoot` (was a hardcoded `C:\Users\steve\dev\...`); added a `7z` PATH check that fails fast with a clear message (was a silent `Out-Null` failure at archive time); the two identical `7z a` calls collapsed into one loop over a Firefox/Chrome target table; added `-OutputDir` param defaulting to `$env:USERPROFILE\Downloads` (behavior-preserving). Smoke-tested against a temp output dir: both archives produced, byte-identical (27040 bytes each), staging cleaned.
+4. **`welcome.js`**: added a `window.close()` fallback. `window.close()` silently no-ops on tabs the script didn't open; the old code stranded the user on a frozen blank page. A second `setTimeout` (4s) checks `window.closed` and `location.replace("https://www.youtube.com")` if the tab didn't close. If close succeeded the context is destroyed, so the fallback never fires — safe to run unconditionally.
+5. **`CONTRIBUTING.md`**: added a "YouTube Shorts" section documenting intentional non-support in v1.x (different layout, no comment section, swipe-driven view counting) — one-line why, and explicitly says "expected, not a broken selector" so it routes Shorts reports away from selector-fix churn. Replaced the stale "Chrome / Chromium port" section — it claimed the extension was Firefox-only and needed webextension-polyfill, false since the MV3 unification (v1.2.0). It now states the single MV3 tree runs in both, `browser.*` throughout, no polyfill.
+6. **Roadmap numbering**: the brief called this "Phase 7" but ROADMAP.md already used 7/7b/8/9; recorded as **Phase 10 — Repo Hygiene** to avoid renumbering history. Phase status went to ROADMAP.md because AGENTS.md contains no roadmap section (guardrail #3 intent satisfied via the actual roadmap).
+
+### Assumptions baked in
+- `welcome.html` needs no change — its `<script src="welcome.js">` (line 200) and the `web_accessible_resources` entry were verified correct.
+- Chrome supports the `browser.*` namespace natively in MV3 (the codebase has used it since the unification and was manually verified).
+- Gitignoring `package.json` won't hide a future real dependency — if the extension ever grows a build step, the entries are trivially removable.
+
+### What was ruled out
+- Deploying `build.ps1` output or testing it in browsers — the change is mechanical (param/loop/check); verified by successful archive build.
+- Adding `.env.local` cleanup — already ignored, untouched content.
+- Touching `reporter.js`/`ROADMAP.md` ignore state — both confirmed live and intended.
+
+### Files changed
+- `.gitignore` (committed) — dedupe + new entries
+- `build.ps1` (git rm --cached + hardened; stays untracked/gitignored)
+- `welcome.js` (committed) — close fallback
+- `CONTRIBUTING.md` (committed) — Shorts note + Chrome-port fix
+- `ROADMAP.md` (gitignored) — Phase 10 entry
+
+### Last file / line
+- `welcome.js:23-27` — close-fallback `setTimeout`.
+
+### Sitrep for next session
+- Build via build.ps1 and reinstall in FF + Chrome to eyeball the welcome flow (close vs redirect paths).
+- Remaining eval items: bar-color vs verdict threshold mismatch, remote-selector try/catch robustness.
+- Worker `/health` still reports 1.1.6 (separate API repo, pending deploy).
+- First `git status` after this session should be clean — the recurring `??` entries are now ignored.
+
+### Commit
+- 
+
